@@ -19,3 +19,7 @@ package at.axelGschaider.pimpedTable
 
 
 
+class PimpedTable {
+  
+}
+
