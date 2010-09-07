@@ -16,6 +16,7 @@ or http://github.com/axelGschaider
 */
 
 import at.axelGschaider.pimpedTable._
+import scala.swing._
 
 case class Container(n:Int, s:String)
 
@@ -24,7 +25,7 @@ sealed abstract class Value
 case class IntValue(i:Int) extends Value
 case class StringValue(s:String) extends Value
 
-case class Data(i:Int, s:String) extends ColumnData[Data] {
+case class Data(i:Int, s:String) extends RowData[Data] {
    override val isExpandAble = true;
    override def expand() = (1 to 5).toList.map(x => Data(i, s+x.toString))
 }
@@ -50,13 +51,31 @@ case class IntColumn(val name:String) extends MyColumns[Data, Value] {
   override val ignoreWhileExpanding = true
 }
 
+object Test extends SimpleSwingApplication {
+  
+  def top = new MainFrame {
+    title = "Table Test"
+    
+    //DO SOME INIT
+    //MainFleetSummaryDistributer registerClient this
 
-object Test {
-  val data = (0 to 10).toList.map(x => Data(x, x.toString + "xxx")) 
-  val columns = IntColumn("some int") :: StringColumn("some string") :: List.empty[MyColumns[Data,Value]]
-  //val table = new PimpedTable(data, TheStringColumn :: TheIntColumn :: List[ColumnDescription[Data, Value]].empty)
-  //val t = new PimpedTable(data,List.empty[ColumnDescription[Data,Value]] ++ TheIntColumn)
-  val table = new PimpedTable(data, columns) 
+    //SET SIZE AND LOCATION
+    val framewidth = 640
+    val frameheight = 480
+
+    val data = (0 to 10).toList.map(x => Data(x, x.toString + "xxx")) 
+    val columns = IntColumn("some int") :: StringColumn("some string") :: List.empty[MyColumns[Data,Value]]
+    val table = new PimpedTable(data, columns) 
+
+    val screenSize = java.awt.Toolkit.getDefaultToolkit().getScreenSize()
+    location = new java.awt.Point((screenSize.width - framewidth)/2, (screenSize.height - frameheight)/2)
+    minimumSize = new java.awt.Dimension(framewidth, frameheight)
+
+    contents = table
+
+  }
+
+  
 }
 
 

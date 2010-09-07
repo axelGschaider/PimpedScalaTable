@@ -18,8 +18,9 @@ or http://github.com/axelGschaider
 package at.axelGschaider.pimpedTable
 
 import scala.swing._
+import javax.swing.JTable
 
-trait ColumnData[A] {
+trait RowData[A] {
   val isExpandAble:Boolean = false
   def expand():List[A] = List.empty[A]
 }
@@ -39,9 +40,40 @@ trait ColumnDescription[A,B] {
 
 }
 
-class PimpedTable[A, B](data:List[ColumnData[A]], columns:List[ColumnDescription[A,B]]) {
+
+
+class PimpedTable[A, B](dat:List[RowData[A]], columns:List[ColumnDescription[A,B]]) extends ScrollPane {
+
+  horizontalScrollBarPolicy = scala.swing.ScrollPane.BarPolicy.AsNeeded
+  verticalScrollBarPolicy = scala.swing.ScrollPane.BarPolicy.AsNeeded
+
+  private var lokalData = dat
+  private var lokalTable = new Table()
+
+  def data:List[RowData[A]] = lokalData
+
+  def data_=(d:List[RowData[A]])= {
+    lokalData = d
+    triggerDataChange()
+  }
+
+  def tablePeer:Table = lokalTable
+
+  def tablePeer_=(t:Table) = {
+    lokalTable = t
+  }
   
-  
+  private def triggerDataChange() = {
+    
+  }
+
+  def filter(p: (RowData[A]) => Boolean):Unit = {
+    
+  }
+
+  def unfilter():Unit = {
+    
+  }
 
 }
 
