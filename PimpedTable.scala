@@ -17,9 +17,31 @@ or http://github.com/axelGschaider
 
 package at.axelGschaider.pimpedTable
 
+import scala.swing._
 
+trait ColumnData[A] {
+  val isExpandAble:Boolean = false
+  def expand():List[A] = List.empty[A]
+}
 
-class PimpedTable {
+trait ColumnDescription[A,B] {
+  val name:String;
+
+  def extractValue(x:A):B;
+
+  val isSortable:Boolean = false;
+
+  def firstIsBigger(x:B, y:B):Boolean;
+
+  def firstValueIsBigger(x:A, y:A):Boolean = firstIsBigger(extractValue(x), extractValue(y))  
+
+  val ignoreWhileExpanding:Boolean = false;
+
+}
+
+class PimpedTable[A, B](data:List[ColumnData[A]], columns:List[ColumnDescription[A,B]]) {
   
+  
+
 }
 
