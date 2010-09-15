@@ -18,6 +18,7 @@ or http://github.com/axelGschaider
 import at.axelGschaider.pimpedTable._
 import scala.swing._
 import scala.swing.GridBagPanel.Fill
+import event._
 import java.awt.Color
 import java.util.Comparator
 
@@ -37,6 +38,8 @@ sealed trait MyColumns[+Value] extends ColumnDescription[Data, Value] {
     case (IntValue(i1),    IntValue(i2))    => i1 > i2
     case (StringValue(s1), StringValue(s2)) => s1 > s2
   }*/
+  
+  override val isSortable = true
 
   def renderComponent(data:Data, isSelected: Boolean, focused: Boolean):Component = {
     
@@ -49,6 +52,8 @@ sealed trait MyColumns[+Value] extends ColumnDescription[Data, Value] {
 
     if(isSelected) {
       l.background = Color.BLUE
+      l.foreground = Color.GREEN
+      //println(l.text + ": I am elected!!!!!")
     }
 
     l
@@ -60,7 +65,13 @@ sealed trait MyColumns[+Value] extends ColumnDescription[Data, Value] {
 case class StringColumn(name:String) extends MyColumns[StringValue] {
   def extractValue(x:Data) = StringValue(x.s)
 
-  def comparator: Comparator[StringValue] = null 
+  def comparator: Comparator[StringValue] = new Comparator[StringValue] {
+    def compare(o1:StringValue, o2:StringValue):Int = (o1,o2) match {
+      case (StringValue(s1), StringValue(s2)) => if(s1 < s2) -1
+                                                 else if (s1 > s2) 1
+                                                 else 0
+    }
+  } 
 
 }
 
@@ -69,7 +80,11 @@ case class IntColumn(name:String) extends MyColumns[IntValue] {
 
   def comparator: Comparator[IntValue] = new Comparator[IntValue] {
     
-    def compare(o1:IntValue, o2:IntValue):Int = 0
+    def compare(o1:IntValue, o2:IntValue):Int = (o1,o2) match {
+      case (IntValue(i1), IntValue(i2)) => if(i1 < i2) -1
+                                           else if (i1 > i2) 1
+                                           else 0
+    }
   }
 
 }
@@ -87,12 +102,16 @@ object Test extends SimpleSwingApplication {
     val framewidth = 640
     val frameheight = 480
 
-    val data:List[RowData] = (0 to 50).toList.map(x => RowData(Data(x, x.toString + "xxx"))) 
+    val data:List[RowData] = (0 to 50).toList.map(x => RowData(Data(x, (100-x).toString + "xxx"))) 
     val columns:List[MyColumns[Value]] = List(new IntColumn("some int"), new StringColumn("some string") )
     val table = new PimpedTable(data, columns) {
       tablePeer.showGrid = true
       tablePeer.gridColor = Color.BLACK
+      tablePeer.selectionBackground = Color.RED
+      tablePeer.selectionForeground = Color.GREEN
     }
+
+    val theRealTable = table.tablePeer
     
     val screenSize = java.awt.Toolkit.getDefaultToolkit().getScreenSize()
     location = new java.awt.Point((screenSize.width - framewidth)/2, (screenSize.height - frameheight)/2)
@@ -111,6 +130,13 @@ object Test extends SimpleSwingApplication {
     }
 
     contents = new SplitPane(Orientation.Vertical, buttonPannel, table)
+
+    listenTo(theRealTable.selection)
+    reactions += {
+      case TableRowsSelected(`theRealTable`, range, adjusting) => {
+        
+      }
+    }
     
   }
 

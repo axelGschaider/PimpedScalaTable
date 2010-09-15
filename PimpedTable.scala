@@ -20,6 +20,7 @@ package at.axelGschaider.pimpedTable
 import scala.swing._
 import javax.swing.JTable
 import javax.swing.table.AbstractTableModel
+import javax.swing.table.TableRowSorter
 import java.util.Comparator
 
 trait Row[A] {
@@ -87,6 +88,19 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
     }
   }
 
+  val sorter = new TableRowSorter[PimpedTableModel[A,B]]() 
+
+  private def fillSorter = {
+    columns.zipWithIndex filter {x => x match {
+      case (colDes,_) => colDes.isSortable
+    }} foreach {x => x match {
+          case (colDes,i) => {
+            println("registering in column " + colDes.name + " (" +i+"")
+            sorter.setComparator(i, colDes.comparator)}
+        }}
+
+  }
+
   def data:List[Row[A]] = lokalData
 
   def data_=(d:List[Row[A]])= {
@@ -100,8 +114,13 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
     lokalTable = t
   }
   
+
+
   private def triggerDataChange() = {
-    tablePeer.model = new PimpedTableModel(data, columns)
+    val m =  new PimpedTableModel(data, columns)
+    tablePeer.model = m
+    sorter setModel m
+    fillSorter
   }
 
   /*def filter(p: (RowData[A]) => Boolean):Unit = {
@@ -115,6 +134,15 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
   def rendererComponentForPeerTable(isSelected: Boolean, focused: Boolean, row: Int, column: Int): Component = {
     columns(column).renderComponent(data(row).data, isSelected, focused)
   }
+  
+  
+
+  //lokalTable.peer.setAutoCreateRowSorter()
+  //val sorter =  lokalTable.peer.getRowSorter()
+
+  /*columns.zipWithIndex foreach (x => x match {
+    case (a,i) => sorter.setComparator(i, a.comparator)
+  } )*/
     
   data = dat
   viewportView = tablePeer
