@@ -102,7 +102,7 @@ object Test extends SimpleSwingApplication {
     val framewidth = 640
     val frameheight = 480
 
-    val data:List[RowData] = (0 to 50).toList.map(x => RowData(Data(x, (100-x).toString + "xxx"))) 
+    val data:List[RowData] = (0 to 50).toList.map(x => RowData(Data(x,/* (100-x).toString + */"xxx"))) 
     val columns:List[MyColumns[Value]] = List(new IntColumn("some int"), new StringColumn("some string") )
     val table = new PimpedTable(data, columns) {
       showGrid = true

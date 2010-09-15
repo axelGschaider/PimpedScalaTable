@@ -83,16 +83,16 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
   private var lokalData = dat
 
   val sorter = new TableRowSorter[PimpedTableModel[A,B]]() 
+  this.peer.setRowSorter(sorter)
 
   private def fillSorter = {
     columns.zipWithIndex filter {x => x match {
       case (colDes,_) => colDes.isSortable
     }} foreach {x => x match {
           case (colDes,i) => {
-            println("registering in column " + colDes.name + " (" +i+"")
             sorter.setComparator(i, colDes.comparator)}
-        }}
-
+        }
+    }
   }
 
   def data:List[Row[A]] = lokalData
