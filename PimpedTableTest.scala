@@ -105,13 +105,12 @@ object Test extends SimpleSwingApplication {
     val data:List[RowData] = (0 to 50).toList.map(x => RowData(Data(x, (100-x).toString + "xxx"))) 
     val columns:List[MyColumns[Value]] = List(new IntColumn("some int"), new StringColumn("some string") )
     val table = new PimpedTable(data, columns) {
-      tablePeer.showGrid = true
-      tablePeer.gridColor = Color.BLACK
-      tablePeer.selectionBackground = Color.RED
-      tablePeer.selectionForeground = Color.GREEN
+      showGrid = true
+      gridColor = Color.BLACK
+      selectionBackground = Color.RED
+      selectionForeground = Color.GREEN
     }
 
-    val theRealTable = table.tablePeer
     
     val screenSize = java.awt.Toolkit.getDefaultToolkit().getScreenSize()
     location = new java.awt.Point((screenSize.width - framewidth)/2, (screenSize.height - frameheight)/2)
@@ -128,12 +127,17 @@ object Test extends SimpleSwingApplication {
             fill = Fill.Both
           })
     }
+    
+    val tablePane = new ScrollPane(table) {
+      horizontalScrollBarPolicy = scala.swing.ScrollPane.BarPolicy.AsNeeded
+      verticalScrollBarPolicy = scala.swing.ScrollPane.BarPolicy.AsNeeded
+      viewportView = table
+    }
+    contents = new SplitPane(Orientation.Vertical, buttonPannel, tablePane)
 
-    contents = new SplitPane(Orientation.Vertical, buttonPannel, table)
-
-    listenTo(theRealTable.selection)
+    listenTo(table.selection)
     reactions += {
-      case TableRowsSelected(`theRealTable`, range, adjusting) => {
+      case TableRowsSelected(`table`, range, adjusting) => {
         
       }
     }

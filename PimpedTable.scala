@@ -76,17 +76,11 @@ class PimpedTableModel[A,B](dat:List[Row[A]], columns:List[ColumnDescription[A,B
 }
 
 
-class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends ScrollPane {
+class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends Table {
 
-  horizontalScrollBarPolicy = scala.swing.ScrollPane.BarPolicy.AsNeeded
-  verticalScrollBarPolicy = scala.swing.ScrollPane.BarPolicy.AsNeeded
+  
 
   private var lokalData = dat
-  private var lokalTable = new Table() {
-    override  def   rendererComponent(isSelected: Boolean, focused: Boolean, row: Int, column: Int): Component = {
-      rendererComponentForPeerTable(isSelected, focused, row, column)
-    }
-  }
 
   val sorter = new TableRowSorter[PimpedTableModel[A,B]]() 
 
@@ -108,17 +102,17 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
     triggerDataChange()
   }
 
-  def tablePeer:Table = lokalTable
+  //def tablePeer:Table = lokalTable
 
-  def tablePeer_=(t:Table) = {
+  /*def tablePeer_=(t:Table) = {
     lokalTable = t
-  }
+  }*/
   
 
 
   private def triggerDataChange() = {
     val m =  new PimpedTableModel(data, columns)
-    tablePeer.model = m
+    this.model = m
     sorter setModel m
     fillSorter
   }
@@ -130,6 +124,9 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
   /*def unfilter():Unit = {
     
   }*/
+  override  def   rendererComponent(isSelected: Boolean, focused: Boolean, row: Int, column: Int): Component = {
+    rendererComponentForPeerTable(isSelected, focused, row, column)
+  }
 
   def rendererComponentForPeerTable(isSelected: Boolean, focused: Boolean, row: Int, column: Int): Component = {
     columns(column).renderComponent(data(row).data, isSelected, focused)
@@ -145,7 +142,6 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
   } )*/
     
   data = dat
-  viewportView = tablePeer
 
 }
 
