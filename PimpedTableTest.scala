@@ -17,42 +17,66 @@ or http://github.com/axelGschaider
 
 import at.axelGschaider.pimpedTable._
 import scala.swing._
-
-case class Container(n:Int, s:String)
-
-sealed abstract class Value
-
-case class IntValue(i:Int) extends Value
-case class StringValue(s:String) extends Value
-
-case class Data(i:Int, s:String) extends RowData[Data] {
-   override val isExpandAble = true;
-   override def expand() = (1 to 5).toList.map(x => Data(i, s+x.toString))
-}
+import scala.swing.GridBagPanel.Fill
+import java.awt.Color
+import java.util.Comparator
 
 
 
+case class Data(i:Int, s:String)
 
-sealed abstract class MyColumns[Data, Value] extends ColumnDescription[Data, Value] {
-  def firstIsBigger(x:Value, y:Value) = (x, y) match {
-    case (IntValue(i1), IntValue(i2))       => i1 > i2
-    case (StringValue(s1), StringValue(s2)) => true
-    case _                                  => false
+sealed trait Value 
+
+case class IntValue(i:Int) extends Value 
+case class StringValue(s:String) extends Value 
+
+case class RowData(data:Data) extends Row[Data]
+
+sealed trait MyColumns[+Value] extends ColumnDescription[Data, Value] {
+  /*def firstIsBigger(x:Data, y:Data) = (this extractValue x,this extractValue y) match {
+    case (IntValue(i1),    IntValue(i2))    => i1 > i2
+    case (StringValue(s1), StringValue(s2)) => s1 > s2
+  }*/
+
+  def renderComponent(data:Data, isSelected: Boolean, focused: Boolean):Component = {
+    
+    val l = new Label()
+
+    extractValue(data) match {
+      case StringValue(s) => l.text = s
+      case IntValue(i)    => l.text = i.toString
+    }
+
+    if(isSelected) {
+      l.background = Color.BLUE
+    }
+
+    l
+
   }
+
 }
 
-
-case class StringColumn(val name:String) extends MyColumns[Data, Value]  {
+case class StringColumn(name:String) extends MyColumns[StringValue] {
   def extractValue(x:Data) = StringValue(x.s)
+
+  def comparator: Comparator[StringValue] = null 
+
 }
 
-case class IntColumn(val name:String) extends MyColumns[Data, Value] {
+case class IntColumn(name:String) extends MyColumns[IntValue] {
   def extractValue(x:Data) = IntValue(x.i)
-  override val ignoreWhileExpanding = true
+
+  def comparator: Comparator[IntValue] = new Comparator[IntValue] {
+    
+    def compare(o1:IntValue, o2:IntValue):Int = 0
+  }
+
 }
+
 
 object Test extends SimpleSwingApplication {
-  
+
   def top = new MainFrame {
     title = "Table Test"
     
@@ -63,16 +87,31 @@ object Test extends SimpleSwingApplication {
     val framewidth = 640
     val frameheight = 480
 
-    val data = (0 to 10).toList.map(x => Data(x, x.toString + "xxx")) 
-    val columns = IntColumn("some int") :: StringColumn("some string") :: List.empty[MyColumns[Data,Value]]
-    val table = new PimpedTable(data, columns) 
-
+    val data:List[RowData] = (0 to 50).toList.map(x => RowData(Data(x, x.toString + "xxx"))) 
+    val columns:List[MyColumns[Value]] = List(new IntColumn("some int"), new StringColumn("some string") )
+    val table = new PimpedTable(data, columns) {
+      tablePeer.showGrid = true
+      tablePeer.gridColor = Color.BLACK
+    }
+    
     val screenSize = java.awt.Toolkit.getDefaultToolkit().getScreenSize()
     location = new java.awt.Point((screenSize.width - framewidth)/2, (screenSize.height - frameheight)/2)
     minimumSize = new java.awt.Dimension(framewidth, frameheight)
+    
+    val buttonPannel = new GridBagPanel() {
+      add(new Button("Test"),
+          new Constraints() {
+            grid = (0,0)
+            gridheight = 1
+            gridwidth = 1
+            weightx = 1
+            weighty = 1
+            fill = Fill.Both
+          })
+    }
 
-    contents = table
-
+    contents = new SplitPane(Orientation.Vertical, buttonPannel, table)
+    
   }
 
   

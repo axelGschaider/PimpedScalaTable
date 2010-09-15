@@ -19,40 +19,77 @@ package at.axelGschaider.pimpedTable
 
 import scala.swing._
 import javax.swing.JTable
+import javax.swing.table.AbstractTableModel
+import java.util.Comparator
 
-trait RowData[A] {
+trait Row[A] {
+  val data:A
   val isExpandAble:Boolean = false
   def expand():List[A] = List.empty[A]
 }
 
-trait ColumnDescription[A,B] {
+
+
+
+trait ColumnDescription[-A,+B] {
   val name:String;
 
   def extractValue(x:A):B;
 
   val isSortable:Boolean = false;
 
-  def firstIsBigger(x:B, y:B):Boolean;
-
-  def firstValueIsBigger(x:A, y:A):Boolean = firstIsBigger(extractValue(x), extractValue(y))  
-
   val ignoreWhileExpanding:Boolean = false;
+
+  def renderComponent(data:A, isSelected: Boolean, focused: Boolean):Component
+
+  def comparator: Comparator[_ <: B]
+
+}
+
+class PimpedTableModel[A,B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends AbstractTableModel {
+  
+  private var lokalData = dat
+
+  def data = lokalData
+
+  def data_=(d: List[Row[A]]) = {
+    lokalData = d
+  }
+
+  def getRowCount():Int = data.length
+
+  def getColumnCount():Int = columns.length
+
+
+  override def getValueAt(row:Int, column:Int): java.lang.Object = {
+    if(row < 0 || column < 0 || column >= columns.length || row >= data.length) {
+      throw new Error("Bad Table Index: row " + row + " column " + column)
+    }
+    //(columns(column) extractValue data(row)).toString
+    //null
+    (columns(column) extractValue data(row).data).asInstanceOf[java.lang.Object]
+  }
+
+  override def getColumnName(column: Int): String = columns(column).name
 
 }
 
 
-
-class PimpedTable[A, B](dat:List[RowData[A]], columns:List[ColumnDescription[A,B]]) extends ScrollPane {
+class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends ScrollPane {
 
   horizontalScrollBarPolicy = scala.swing.ScrollPane.BarPolicy.AsNeeded
   verticalScrollBarPolicy = scala.swing.ScrollPane.BarPolicy.AsNeeded
 
   private var lokalData = dat
-  private var lokalTable = new Table()
+  private var lokalTable = new Table() {
+    override  def   rendererComponent(isSelected: Boolean, focused: Boolean, row: Int, column: Int): Component = {
+      rendererComponentForPeerTable(isSelected, focused, row, column)
+    }
+  }
 
-  def data:List[RowData[A]] = lokalData
+  def data:List[Row[A]] = lokalData
 
-  def data_=(d:List[RowData[A]])= {
+  def data_=(d:List[Row[A]])= {
     lokalData = d
     triggerDataChange()
   }
@@ -64,16 +101,23 @@ class PimpedTable[A, B](dat:List[RowData[A]], columns:List[ColumnDescription[A,B
   }
   
   private def triggerDataChange() = {
-    
+    tablePeer.model = new PimpedTableModel(data, columns)
   }
 
-  def filter(p: (RowData[A]) => Boolean):Unit = {
+  /*def filter(p: (RowData[A]) => Boolean):Unit = {
     
-  }
+  }*/
 
-  def unfilter():Unit = {
+  /*def unfilter():Unit = {
     
+  }*/
+
+  def rendererComponentForPeerTable(isSelected: Boolean, focused: Boolean, row: Int, column: Int): Component = {
+    columns(column).renderComponent(data(row).data, isSelected, focused)
   }
+    
+  data = dat
+  viewportView = tablePeer
 
 }
 
