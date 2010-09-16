@@ -65,27 +65,27 @@ sealed trait MyColumns[+Value] extends ColumnDescription[Data, Value] {
 case class StringColumn(name:String) extends MyColumns[StringValue] {
   def extractValue(x:Data) = StringValue(x.s)
 
-  def comparator: Comparator[StringValue] = new Comparator[StringValue] {
+  def comparator = Some(new Comparator[StringValue] {
     def compare(o1:StringValue, o2:StringValue):Int = (o1,o2) match {
       case (StringValue(s1), StringValue(s2)) => if(s1 < s2) -1
                                                  else if (s1 > s2) 1
                                                  else 0
     }
-  } 
+  })
 
 }
 
 case class IntColumn(name:String) extends MyColumns[IntValue] {
   def extractValue(x:Data) = IntValue(x.i)
 
-  def comparator: Comparator[IntValue] = new Comparator[IntValue] {
+  def comparator = Some(new Comparator[IntValue] {
     
     def compare(o1:IntValue, o2:IntValue):Int = (o1,o2) match {
       case (IntValue(i1), IntValue(i2)) => if(i1 < i2) -1
                                            else if (i1 > i2) 1
                                            else 0
     }
-  }
+  })
 
 }
 

@@ -43,7 +43,7 @@ trait ColumnDescription[-A,+B] {
 
   def renderComponent(data:A, isSelected: Boolean, focused: Boolean):Component
 
-  def comparator: Comparator[_ <: B]
+  def comparator: Option[Comparator[_ <: B]]
 
 }
 
@@ -89,9 +89,12 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
     columns.zipWithIndex filter {x => x match {
       case (colDes,_) => colDes.isSortable
     }} foreach {x => x match {
-          case (colDes,i) => {
-            sorter.setComparator(i, colDes.comparator)}
+          case (colDes,i) => { colDes.comparator match {
+            case None    => {}
+            case Some(c) => sorter.setComparator(i, c)
+          }
         }
+      }
     }
   }
 
