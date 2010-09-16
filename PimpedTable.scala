@@ -44,11 +44,9 @@ trait ColumnDescription[-A,+B] {
   def renderComponent(data:A, isSelected: Boolean, focused: Boolean):Component
 
   def comparator: Option[Comparator[_ <: B]]
-
 }
 
 class PimpedTableModel[A,B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends AbstractTableModel {
-  
   private var lokalData = dat
 
   def data = lokalData
@@ -72,14 +70,10 @@ class PimpedTableModel[A,B](dat:List[Row[A]], columns:List[ColumnDescription[A,B
   }
 
   override def getColumnName(column: Int): String = columns(column).name
-
 }
 
 
 class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends Table {
-
-  
-
   private var lokalData = dat
 
   val sorter = new TableRowSorter[PimpedTableModel[A,B]]() 
@@ -132,18 +126,9 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
   }
 
   def rendererComponentForPeerTable(isSelected: Boolean, focused: Boolean, row: Int, column: Int): Component = {
-    columns(column).renderComponent(data(row).data, isSelected, focused)
+    columns(column).renderComponent(data(this.peer.convertRowIndexToModel(row)).data, isSelected, focused)
   }
   
-  
-
-  //lokalTable.peer.setAutoCreateRowSorter()
-  //val sorter =  lokalTable.peer.getRowSorter()
-
-  /*columns.zipWithIndex foreach (x => x match {
-    case (a,i) => sorter.setComparator(i, a.comparator)
-  } )*/
-    
   data = dat
 
 }

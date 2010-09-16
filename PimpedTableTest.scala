@@ -64,7 +64,6 @@ sealed trait MyColumns[+Value] extends ColumnDescription[Data, Value] {
 
 case class StringColumn(name:String) extends MyColumns[StringValue] {
   def extractValue(x:Data) = StringValue(x.s)
-
   def comparator = Some(new Comparator[StringValue] {
     def compare(o1:StringValue, o2:StringValue):Int = (o1,o2) match {
       case (StringValue(s1), StringValue(s2)) => if(s1 < s2) -1
@@ -91,7 +90,6 @@ case class IntColumn(name:String) extends MyColumns[IntValue] {
 
 
 object Test extends SimpleSwingApplication {
-
   def top = new MainFrame {
     title = "Table Test"
     
@@ -102,7 +100,7 @@ object Test extends SimpleSwingApplication {
     val framewidth = 640
     val frameheight = 480
 
-    val data:List[RowData] = (0 to 50).toList.map(x => RowData(Data(x,/* (100-x).toString + */"xxx"))) 
+    val data:List[RowData] = (0 to 50).toList.map(x => RowData(Data(x, (100-x).toString + "xxx"))) 
     val columns:List[MyColumns[Value]] = List(new IntColumn("some int"), new StringColumn("some string") )
     val table = new PimpedTable(data, columns) {
       showGrid = true
@@ -143,8 +141,6 @@ object Test extends SimpleSwingApplication {
     }
     
   }
-
-  
 }
 
 
