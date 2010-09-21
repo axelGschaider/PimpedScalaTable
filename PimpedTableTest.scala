@@ -10,7 +10,7 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 You should have received a copy of the GNU General Public License along with this program; if not, see <http://www.gnu.org/licenses/>. 
 
 
-If you would like to obtain this programm under another license, feel free to contact me: 
+If you would like to obtain this programm under another license, feel free to contact me. Probably I won't charge you for commercial projects. Just would like to receive a courtesy call.
 axel[dot]gschaider[at]gmx[dot]at
 or http://github.com/axelGschaider
 */
