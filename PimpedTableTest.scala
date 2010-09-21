@@ -116,10 +116,11 @@ object Test extends SimpleSwingApplication {
     val buttonPannel = new GridBagPanel() {
       add(new Button(Action("Test") {
             println("Test:")
-            if(table.isFiltered) table.unfilter
+            table unselectAll// data(0).data
+            /*if(table.isFiltered) table.unfilter
             else table filter (_ match {
               case Data(i, _) => i%2 == 0
-            })
+            })*/
           })
         , new Constraints() {
             grid = (0,0)

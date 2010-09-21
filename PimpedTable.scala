@@ -130,6 +130,22 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
     lokalFiltered = false
   }
 
+  def select(x:A):Unit = {
+    data.map(_.data).indexOf(x) match {
+      case -1 => {}
+      case i  => this.selection.rows += i
+    }
+  }
+
+  def unselect(x:A):Unit = {
+    data.map(_.data).indexOf(x) match {
+      case -1 => {}
+      case i  => this.selection.rows -= i
+    }
+  }
+
+  def unselectAll():Unit = this.selection.rows.clear
+
   override  def   rendererComponent(isSelected: Boolean, focused: Boolean, row: Int, column: Int): Component = {
     rendererComponentForPeerTable(isSelected, focused, row, column)
   }
