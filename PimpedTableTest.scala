@@ -116,10 +116,11 @@ object Test extends SimpleSwingApplication {
     val buttonPannel = new GridBagPanel() {
       add(new Button(Action("Test") {
             println("Test:")
-            table.selectedData.foreach(_ match {
-              case Data(i,s) => println("i:" + i + " s:"+s)
+            if(table.isFiltered) table.unfilter
+            else table filter (_ match {
+              case Data(i, _) => i%2 == 0
             })
-          }) {background = Color.BLUE}
+          })
         , new Constraints() {
             grid = (0,0)
             gridheight = 1

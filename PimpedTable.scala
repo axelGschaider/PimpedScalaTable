@@ -86,6 +86,7 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
 
   private var lokalData = dat
   private var tableModel:PimpedTableModel[A,B] = new PimpedTableModel(data, columns)
+  private var lokalFiltered:Boolean = false
 
   val sorter = new TableRowSorter[PimpedTableModel[A,B]]() 
   this.peer.setRowSorter(sorter)
@@ -117,13 +118,18 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
     fillSorter
   }
 
-  /*def filter(p: (RowData[A]) => Boolean):Unit = {
-    
-  }*/
+  def isFiltered() = lokalFiltered
 
-  /*def unfilter():Unit = {
-    
-  }*/
+  def filter(p: (A) => Boolean):Unit = {
+    data = dat.filter(x => p(x.data))
+    lokalFiltered = true
+  }
+
+  def unfilter():Unit = {
+    data = dat  
+    lokalFiltered = false
+  }
+
   override  def   rendererComponent(isSelected: Boolean, focused: Boolean, row: Int, column: Int): Component = {
     rendererComponentForPeerTable(isSelected, focused, row, column)
   }
