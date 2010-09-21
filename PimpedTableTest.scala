@@ -115,8 +115,13 @@ object Test extends SimpleSwingApplication {
     minimumSize = new java.awt.Dimension(framewidth, frameheight)
     
     val buttonPannel = new GridBagPanel() {
-      add(new Button("Test"),
-          new Constraints() {
+      add(new Button(Action("Test") {
+            println("Test:")
+            table.selectedData.foreach(_ match {
+              case Data(i,s) => println("i:" + i + " s:"+s)
+            })
+          })
+        , new Constraints() {
             grid = (0,0)
             gridheight = 1
             gridwidth = 1

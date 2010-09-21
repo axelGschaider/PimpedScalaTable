@@ -84,6 +84,7 @@ class ConvenientPimpedTable[A, B](dat:List[A], columns:List[ColumnDescription[A,
 class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends Table {
 
   private var lokalData = dat
+  private var tableModel:PimpedTableModel[A,B] = new PimpedTableModel(data, columns)
 
   val sorter = new TableRowSorter[PimpedTableModel[A,B]]() 
   this.peer.setRowSorter(sorter)
@@ -109,9 +110,9 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
   }
 
   private def triggerDataChange() = {
-    val m =  new PimpedTableModel(data, columns)
-    this.model = m
-    sorter setModel m
+    tableModel =  new PimpedTableModel(data, columns)
+    this.model = tableModel
+    sorter setModel tableModel
     fillSorter
   }
 
@@ -125,11 +126,13 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
   override  def   rendererComponent(isSelected: Boolean, focused: Boolean, row: Int, column: Int): Component = {
     rendererComponentForPeerTable(isSelected, focused, row, column)
   }
-
+  
   def rendererComponentForPeerTable(isSelected: Boolean, focused: Boolean, row: Int, column: Int): Component = {
     columns(column).renderComponent(data(this.peer.convertRowIndexToModel(row)).data, isSelected, focused)
   }
   
+  def selectedData():List[A] = this.selection.rows.toList.map(i => data(this.peer.convertRowIndexToModel(i)).data)
+
   data = dat
 
 }
