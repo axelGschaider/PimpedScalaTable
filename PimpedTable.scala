@@ -69,11 +69,20 @@ class PimpedTableModel[A,B](dat:List[Row[A]], columns:List[ColumnDescription[A,B
     (columns(column) extractValue data(row).data).asInstanceOf[java.lang.Object]
   }
 
+  def getNiceValue(row:Int, column:Int): B = {
+    if(row < 0 || column < 0 || column >= columns.length || row >= data.length) {
+      throw new Error("Bad Table Index: row " + row + " column " + column)
+    }
+    columns(column) extractValue data(row).data
+  }
+
   override def getColumnName(column: Int): String = columns(column).name
 }
 
+class ConvenientPimpedTable[A, B](dat:List[A], columns:List[ColumnDescription[A,B]]) extends PimpedTable[A, B](dat.map(x => new Row[A] {val data = x}),columns)
 
 class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends Table {
+
   private var lokalData = dat
 
   val sorter = new TableRowSorter[PimpedTableModel[A,B]]() 
@@ -98,14 +107,6 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
     lokalData = d
     triggerDataChange()
   }
-
-  //def tablePeer:Table = lokalTable
-
-  /*def tablePeer_=(t:Table) = {
-    lokalTable = t
-  }*/
-  
-
 
   private def triggerDataChange() = {
     val m =  new PimpedTableModel(data, columns)
