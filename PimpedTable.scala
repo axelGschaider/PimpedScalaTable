@@ -107,16 +107,19 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
   def data:List[Row[A]] = lokalData
 
   def data_=(d:List[Row[A]])= {
+    var sel = selectedData()
     lokalData = d
-    triggerDataChange()
-  }
-
-  private def triggerDataChange() = {
+    //triggerDataChange()
     tableModel =  new PimpedTableModel(data, columns)
     this.model = tableModel
     sorter setModel tableModel
     fillSorter
+    sel.foreach(select(_))
   }
+
+  /*private def triggerDataChange() = {
+    
+  }*/
 
   def isFiltered() = lokalFiltered
 
