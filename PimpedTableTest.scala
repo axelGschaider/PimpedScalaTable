@@ -51,9 +51,8 @@ sealed trait MyColumns[+Value] extends ColumnDescription[Data, Value] {
     }
 
     if(isSelected) {
+      l.opaque = true
       l.background = Color.BLUE
-      l.foreground = Color.GREEN
-      //println(l.text + ": I am elected!!!!!")
     }
 
     l
@@ -120,7 +119,7 @@ object Test extends SimpleSwingApplication {
             table.selectedData.foreach(_ match {
               case Data(i,s) => println("i:" + i + " s:"+s)
             })
-          })
+          }) {background = Color.BLUE}
         , new Constraints() {
             grid = (0,0)
             gridheight = 1
