@@ -46,6 +46,8 @@ trait ColumnFixer {
   var columnValue:Int = -1
   var columnNewValue:Int = -1
   def moveColumn(oldIndex:Int, newIndex:Int):Unit
+  def reordering_=(allowe:Boolean)
+  def reordering:Boolean
 }
 
 case class ColumFixingColumListener(x: ColumnFixer) extends TableColumnModelListener{
@@ -53,6 +55,7 @@ case class ColumFixingColumListener(x: ColumnFixer) extends TableColumnModelList
   def columnMarginChanged(e: ChangeEvent) {}
   def columnMoved(e: TableColumnModelEvent) {
     if(x.paintExpandColumn) {
+      //println("column moved")
       if(x.columnValue == -1) x.columnValue = e.getFromIndex
       x.columnNewValue = e.getToIndex
     }
@@ -64,9 +67,13 @@ case class ColumFixingColumListener(x: ColumnFixer) extends TableColumnModelList
 case class ColumnFixingMouseListener(x: ColumnFixer) extends MouseAdapter {
   override def mouseReleased(e:MouseEvent) {
     if(x.paintExpandColumn) {
-      if(x.columnValue != -1 && (x.columnValue == 0 && x.columnNewValue == 0)) {
-        
+      println("can i kick it?")
+      if(x.columnValue != -1 && (x.columnValue == 0 || x.columnNewValue == 0)) {
+        x.moveColumn(x.columnNewValue, x.columnValue)
+        println("get back!!!!")
       } 
+      x.columnNewValue = -1
+      x.columnValue = -1
     }
   }
 }
@@ -150,6 +157,8 @@ class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,
     fallbackData = fallbackData
   }
   def moveColumn(oldIndex:Int, newIndex:Int) = peer.moveColumn(oldIndex, newIndex)
+  def reordering_=(allowe:Boolean) = peer.getTableHeader setReorderingAllowed allowe
+  def reordering:Boolean = peer.getTableHeader.getReorderingAllowed
   peer.getColumnModel().addColumnModelListener(ColumFixingColumListener(this))
   peer.getTableHeader().addMouseListener(ColumnFixingMouseListener(this))
 
@@ -286,7 +295,9 @@ class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,
         }
       }
       else {
-        columns(convertedColumn(column-1)).renderComponent(filteredData(convertedRow(row)).data, isSelected, focused, /*TODO*/false)
+        val c = convertedColumn(column)-1
+        if(c >= 0) columns(c).renderComponent(filteredData(convertedRow(row)).data, isSelected, focused, /*TODO*/false)
+        else {/*println("Föhlah: " + c); */new Label("")}
       }
     } else {
       columns(convertedColumn(column)).renderComponent(filteredData(convertedRow(row)).data, isSelected, focused, /*TODO*/false)
