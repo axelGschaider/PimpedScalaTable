@@ -24,34 +24,40 @@ import scala.swing.event._
 import javax.swing.table.AbstractTableModel
 import javax.swing.table.TableRowSorter
 import java.util.Comparator
+import java.awt.Color
 
 trait Row[A] {
   val data:A
-  val isExpandAble:Boolean = false
-  def expand():List[ExpandedData[A]] = List.empty[ExpandedData[A]]
+  val isExpandable:Boolean = false
+  def expandedData():List[ExpandedData[A]] = List.empty[ExpandedData[A]]
+  var expanded:Boolean = false
+  val internalComparator:Option[Comparator[A]] = None
 }
 
 trait ExpandedData[A] extends Row[A]{
   val father:A
 }
 
-
 trait ColumnDescription[-A,+B] {
-  val name:String;
+  val name:String
 
-  def extractValue(x:A):B;
+  def extractValue(x:A):B
 
-  val isSortable:Boolean = false;
+  val isSortable:Boolean = false
 
-  val ignoreWhileExpanding:Boolean = false;
+  val ignoreWhileExpanding:Boolean = false
 
-  def renderComponent(data:A, isSelected: Boolean, focused: Boolean):Component
+  val paintGroupColourWhileExpanding:Boolean = false
+
+  def renderComponent(data:A, isSelected: Boolean, focused: Boolean, isExpanded: Boolean):Component
 
   def comparator: Option[Comparator[_ <: B]]
 }
 
-class PimpedTableModel[A,B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends AbstractTableModel {
+class PimpedTableModel[A,B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]], var paintExpander:Boolean = false) extends AbstractTableModel {
   private var lokalData = dat
+  
+  private def expOffset = if (paintExpander) 1 else 0
 
   def data = lokalData
 
@@ -59,28 +65,39 @@ class PimpedTableModel[A,B](dat:List[Row[A]], columns:List[ColumnDescription[A,B
     lokalData = d
   }
 
-  def getRowCount():Int = data.length
+  def getRowCount():Int = data.length + expOffset
 
-  def getColumnCount():Int = columns.length
+  def getColumnCount():Int = columns.length + expOffset
 
 
   override def getValueAt(row:Int, column:Int): java.lang.Object = {
-    if(row < 0 || column < 0 || column >= columns.length || row >= data.length) {
+    if(row < 0 || column < 0 || column >= columns.length + expOffset || row >= data.length) {
       throw new Error("Bad Table Index: row " + row + " column " + column)
     }
-    //(columns(column) extractValue data(row)).toString
-    //null
-    (columns(column) extractValue data(row).data).asInstanceOf[java.lang.Object]
+
+    if(paintExpander && column == 0) {
+      data(row).isExpandable.asInstanceOf[java.lang.Object]
+    }
+    else {
+      (columns(column - expOffset) extractValue data(row).data).asInstanceOf[java.lang.Object]
+    }
+    
   }
 
-  def getNiceValue(row:Int, column:Int): B = {
+  /*def getNiceValue(row:Int, column:Int): B = {
     if(row < 0 || column < 0 || column >= columns.length || row >= data.length) {
       throw new Error("Bad Table Index: row " + row + " column " + column)
     }
     columns(column) extractValue data(row).data
-  }
+  }*/
 
-  override def getColumnName(column: Int): String = columns(column).name
+  override def getColumnName(column: Int): String = {
+    if(paintExpander && column == 0) {
+      ""
+    } else {
+      columns(column - expOffset).name
+    }
+  }
 }
 
 class ConvenientPimpedTable[A, B](dat:List[A], columns:List[ColumnDescription[A,B]]) extends PimpedTable[A, B](dat.map(x => new Row[A] {val data = x}),columns)
@@ -91,8 +108,18 @@ class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,
 
   private var fallbackDat = initData
   private var filteredDat = fallbackDat
+  
+  private var expandColumn:Boolean = false
+  def paintExpandColumn:Boolean = expandColumn
+  def paintExpandColumn_=(paint:Boolean) = {
+    expandColumn = paint
+    //TODO
+    fallbackData = fallbackData
+  }
 
-  private var tableModel:PimpedTableModel[A,B] = new PimpedTableModel(filteredData, columns)
+  //val groupColour:Option[java.awt.Color] = Some(Color.LIGHT_GRAY)
+
+  private var tableModel:PimpedTableModel[A,B] = new PimpedTableModel(filteredData, columns, paintExpandColumn)
   private var savedFilter:Option[(A => Boolean)] = None
 
   //private var lokalFiltered:Boolean = false
@@ -130,7 +157,7 @@ class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,
     var sel = selectedData()
     blockSelectionEvents = true
     filteredDat = d
-    tableModel =  new PimpedTableModel(filteredData, columns)
+    tableModel =  new PimpedTableModel(filteredData, columns, paintExpandColumn)
     this.model = tableModel
     sorter setModel tableModel
     fillSorter
@@ -162,24 +189,17 @@ class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,
     blockSelectionEvents = false*/
   }
 
-  /*private def triggerDataChange() = {
-    
-  }*/
-
   def isFiltered() = savedFilter match {
     case None    => false
     case Some(_) => true
   }
 
   def filter(p: (A) => Boolean):Unit = {
-    //data = dat.filter(x => p(x.data))
     savedFilter = Some(p)
     filteredData = fallbackData.filter(x => p(x.data))
   }
 
   def unfilter():Unit = {
-    /*data = dat  
-    lokalFiltered = false*/
     savedFilter = None
     filteredData = fallbackData
   }
@@ -207,15 +227,7 @@ class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,
   listenTo(this.selection)
   reactions += {
     case e@TableRowsSelected(_,_,true) => if(!blockSelectionEvents) publish(PimpedTableSelectionEvent(this))
-     
   }
-
-  /*override def publish(e: Event):Unit = {
-    //println("there something going on")
-    //blockSelectionEvents = true
-    super.publish(e)
-    //blockSelectionEvents = false
-  }*/
 
   def unselectAll():Unit = this.selection.rows.clear
 
@@ -223,11 +235,29 @@ class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,
     rendererComponentForPeerTable(isSelected, focused, row, column)
   }
   
+  private def convertedRow(row:Int) = this.peer.convertRowIndexToModel(row)
+  private def convertedColumn(column:Int) = this.peer.convertColumnIndexToModel(column)
+  
   def rendererComponentForPeerTable(isSelected: Boolean, focused: Boolean, row: Int, column: Int): Component = {
-    columns(column).renderComponent(filteredData(this.peer.convertRowIndexToModel(row)).data, isSelected, focused)
+    if(paintExpandColumn) {
+      if(column == 0) {
+        //TODO
+        new Label() {
+          opaque = true
+          background = Color.RED
+        }
+      }
+      else {
+        columns(convertedColumn(column-1)).renderComponent(filteredData(convertedRow(row)).data, isSelected, focused, /*TODO*/false)
+      }
+    } else {
+      columns(convertedColumn(column)).renderComponent(filteredData(convertedRow(row)).data, isSelected, focused, /*TODO*/false)
+    }
   }
   
-  def selectedData():List[A] = this.selection.rows.toList.map(i => filteredData(this.peer.convertRowIndexToModel(i)).data)
+  def selectedData():List[A] = this.selection.rows.toList.map(i => filteredData(convertedRow(i)).data)
+
+  
 
   fallbackData = initData
 

@@ -41,7 +41,7 @@ sealed trait MyColumns[+Value] extends ColumnDescription[Data, Value] {
   
   override val isSortable = true
 
-  def renderComponent(data:Data, isSelected: Boolean, focused: Boolean):Component = {
+  def renderComponent(data:Data, isSelected: Boolean, focused: Boolean, isExpanded:Boolean):Component = {
     
     val l = new Label()
 
@@ -96,7 +96,7 @@ object Test extends SimpleSwingApplication {
     //MainFleetSummaryDistributer registerClient this
 
     //SET SIZE AND LOCATION
-    val framewidth = 640
+    val framewidth = 480
     val frameheight = 480
 
     val data:List[RowData] = (0 to 100).toList.map(x => RowData(Data(x, (100-x).toString + "xxx"))) 
@@ -116,11 +116,12 @@ object Test extends SimpleSwingApplication {
     val buttonPannel = new GridBagPanel() {
       add(new Button(Action("Test") {
             //println("Test:")
+            table.paintExpandColumn = !table.paintExpandColumn
             //table unselectAll// data(0).data*/
-            if(table.isFiltered) table.unfilter
+            /*if(table.isFiltered) table.unfilter
             else table filter (_ match {
               case Data(i, _) => i%2 == 0
-            })
+            })*/
             //table.data = (0 to 101).toList.map(x => RowData(Data(x, (100-x).toString + "xxx")))
           })
         , new Constraints() {
