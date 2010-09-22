@@ -20,6 +20,7 @@ package at.axelGschaider.pimpedTable
 
 import scala.swing._
 import javax.swing.JTable
+import scala.swing.event._
 import javax.swing.table.AbstractTableModel
 import javax.swing.table.TableRowSorter
 import java.util.Comparator
@@ -27,10 +28,12 @@ import java.util.Comparator
 trait Row[A] {
   val data:A
   val isExpandAble:Boolean = false
-  def expand():List[A] = List.empty[A]
+  def expand():List[ExpandedData[A]] = List.empty[ExpandedData[A]]
 }
 
-
+trait ExpandedData[A] extends Row[A]{
+  val father:A
+}
 
 
 trait ColumnDescription[-A,+B] {
@@ -87,6 +90,7 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
   private var lokalData = dat
   private var tableModel:PimpedTableModel[A,B] = new PimpedTableModel(data, columns)
   private var lokalFiltered:Boolean = false
+  private var blockSelectionEvents:Boolean = false
 
   val sorter = new TableRowSorter[PimpedTableModel[A,B]]() 
   this.peer.setRowSorter(sorter)
@@ -108,13 +112,19 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
 
   def data_=(d:List[Row[A]])= {
     var sel = selectedData()
+    blockSelectionEvents = true
     lokalData = d
     //triggerDataChange()
     tableModel =  new PimpedTableModel(data, columns)
     this.model = tableModel
     sorter setModel tableModel
     fillSorter
-    sel.foreach(select(_))
+    if(sel.size!=0 && !sel.map(select(_)).forall(x => x)) {
+      //System.out.println("something changed")
+      blockSelectionEvents = false
+      publish(TableRowsSelected(this, Range(0,0), true))
+    }
+    blockSelectionEvents = false
   }
 
   /*private def triggerDataChange() = {
@@ -133,18 +143,36 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
     lokalFiltered = false
   }
 
-  def select(x:A):Unit = {
+  def select(x:A):Boolean = {
     data.map(_.data).indexOf(x) match {
-      case -1 => {}
-      case i  => this.selection.rows += i
+      case -1 => {false}
+      case i  => {
+        this.selection.rows += i
+        true
+      }
     }
   }
 
-  def unselect(x:A):Unit = {
+  def unselect(x:A):Boolean = {
     data.map(_.data).indexOf(x) match {
-      case -1 => {}
-      case i  => this.selection.rows -= i
+      case -1 => {false}
+      case i  => {
+        this.selection.rows -= i
+        true
+      }
     }
+  }
+  
+  listenTo(this.selection)
+  reactions += {
+    case e@TableRowsSelected(_,_,_) => if(!blockSelectionEvents) publish(e)
+  }
+
+  override def publish(e: Event):Unit = {
+    //println("there something going on")
+    blockSelectionEvents = true
+    super.publish(e)
+    blockSelectionEvents = false
   }
 
   def unselectAll():Unit = this.selection.rows.clear
