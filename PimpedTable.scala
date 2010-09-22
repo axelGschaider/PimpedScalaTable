@@ -85,6 +85,8 @@ class PimpedTableModel[A,B](dat:List[Row[A]], columns:List[ColumnDescription[A,B
 
 class ConvenientPimpedTable[A, B](dat:List[A], columns:List[ColumnDescription[A,B]]) extends PimpedTable[A, B](dat.map(x => new Row[A] {val data = x}),columns)
 
+case class PimpedTableSelectionEvent(s:Table) extends TableEvent(s)
+
 class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends Table {
 
   private var fallbackDat = initData
@@ -135,7 +137,7 @@ class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,
     if(sel.size!=0 && !sel.map(select(_)).forall(x => x)) {
       //System.out.println("something changed")
       blockSelectionEvents = false
-      publish(TableRowsSelected(this, Range(0,0), true))
+      publish(PimpedTableSelectionEvent(this))
     }
     blockSelectionEvents = false
   }
@@ -204,15 +206,16 @@ class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,
   
   listenTo(this.selection)
   reactions += {
-   case e@TableRowsSelected(_,_,_) => if(!blockSelectionEvents) publish(e) 
+    case e@TableRowsSelected(_,_,true) => if(!blockSelectionEvents) publish(PimpedTableSelectionEvent(this))
+     
   }
 
-  override def publish(e: Event):Unit = {
+  /*override def publish(e: Event):Unit = {
     //println("there something going on")
-    blockSelectionEvents = true
+    //blockSelectionEvents = true
     super.publish(e)
-    blockSelectionEvents = false
-  }
+    //blockSelectionEvents = false
+  }*/
 
   def unselectAll():Unit = this.selection.rows.clear
 

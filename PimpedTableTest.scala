@@ -115,12 +115,13 @@ object Test extends SimpleSwingApplication {
     
     val buttonPannel = new GridBagPanel() {
       add(new Button(Action("Test") {
-            /*println("Test:")
-            table unselectAll// data(0).data*/
+            //println("Test:")
+            //table unselectAll// data(0).data*/
             if(table.isFiltered) table.unfilter
             else table filter (_ match {
               case Data(i, _) => i%2 == 0
             })
+            //table.data = (0 to 101).toList.map(x => RowData(Data(x, (100-x).toString + "xxx")))
           })
         , new Constraints() {
             grid = (0,0)
@@ -141,14 +142,15 @@ object Test extends SimpleSwingApplication {
 
     listenTo(table/*.selection*/)
     reactions += {
-      case TableRowsSelected(`table`, range, adjusting) => {
+      case PimpedTableSelectionEvent(_) => {
         println("\nCLICK.")
-        println(" Adjusting: " + adjusting)
-        println("range: " + range + "\n")
+        //println(" Adjusting: " + adjusting)
+        //println("range: " + range + "\n")
         table.selectedData.foreach(_ match {
           case Data(i, s) => println("i:"+i+" s:"+s)
         })
       }
+      //case _ => println("da ist was faul im Staate Denver")
     }
     
   }
