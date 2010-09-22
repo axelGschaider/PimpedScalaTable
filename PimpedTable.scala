@@ -23,6 +23,9 @@ import javax.swing.JTable
 import scala.swing.event._
 import javax.swing.table.AbstractTableModel
 import javax.swing.table.TableRowSorter
+import javax.swing.event.{ListSelectionEvent, TableColumnModelListener, ChangeEvent, TableColumnModelEvent}
+import java.awt.event.{MouseEvent, MouseAdapter}
+import java.util.EventObject
 import java.util.Comparator
 import java.awt.Color
 
@@ -36,6 +39,36 @@ trait Row[A] {
 
 trait ExpandedData[A] extends Row[A]{
   val father:A
+}
+
+trait ColumnFixer {
+  def paintExpandColumn:Boolean = false
+  var columnValue:Int = -1
+  var columnNewValue:Int = -1
+  def moveColumn(oldIndex:Int, newIndex:Int):Unit
+}
+
+case class ColumFixingColumListener(x: ColumnFixer) extends TableColumnModelListener{
+  def columnSelectionChanged(e: ListSelectionEvent) {}
+  def columnMarginChanged(e: ChangeEvent) {}
+  def columnMoved(e: TableColumnModelEvent) {
+    if(x.paintExpandColumn) {
+      if(x.columnValue == -1) x.columnValue = e.getFromIndex
+      x.columnNewValue = e.getToIndex
+    }
+  }
+  def columnRemoved(e: TableColumnModelEvent) {}
+  def columnAdded(e: TableColumnModelEvent) {}
+}
+
+case class ColumnFixingMouseListener(x: ColumnFixer) extends MouseAdapter {
+  override def mouseReleased(e:MouseEvent) {
+    if(x.paintExpandColumn) {
+      if(x.columnValue != -1 && (x.columnValue == 0 && x.columnNewValue == 0)) {
+        
+      } 
+    }
+  }
 }
 
 trait ColumnDescription[-A,+B] {
@@ -100,22 +133,25 @@ class PimpedTableModel[A,B](dat:List[Row[A]], columns:List[ColumnDescription[A,B
   }
 }
 
-class ConvenientPimpedTable[A, B](dat:List[A], columns:List[ColumnDescription[A,B]]) extends PimpedTable[A, B](dat.map(x => new Row[A] {val data = x}),columns)
+class ConvenientPimpedTable[A, B](dat:List[A], columns:List[ColumnDescription[A,B]]) extends PimpedTable[A, B](dat.map(x => new Row[A] {val data = x}),columns) 
 
 case class PimpedTableSelectionEvent(s:Table) extends TableEvent(s)
 
-class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends Table {
+class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends Table with ColumnFixer {
 
   private var fallbackDat = initData
   private var filteredDat = fallbackDat
   
   private var expandColumn:Boolean = false
-  def paintExpandColumn:Boolean = expandColumn
+  override def paintExpandColumn:Boolean = expandColumn
   def paintExpandColumn_=(paint:Boolean) = {
     expandColumn = paint
     //TODO
     fallbackData = fallbackData
   }
+  def moveColumn(oldIndex:Int, newIndex:Int) = peer.moveColumn(oldIndex, newIndex)
+  peer.getColumnModel().addColumnModelListener(ColumFixingColumListener(this))
+  peer.getTableHeader().addMouseListener(ColumnFixingMouseListener(this))
 
   //val groupColour:Option[java.awt.Color] = Some(Color.LIGHT_GRAY)
 
@@ -127,6 +163,8 @@ class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,
 
   val sorter = new TableRowSorter[PimpedTableModel[A,B]]() 
   this.peer.setRowSorter(sorter)
+
+  //peer.getColumnModel.addColumnModelListener()
 
   private def fillSorter = {
     columns.zipWithIndex filter {x => x match {
