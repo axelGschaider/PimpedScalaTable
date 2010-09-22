@@ -85,11 +85,15 @@ class PimpedTableModel[A,B](dat:List[Row[A]], columns:List[ColumnDescription[A,B
 
 class ConvenientPimpedTable[A, B](dat:List[A], columns:List[ColumnDescription[A,B]]) extends PimpedTable[A, B](dat.map(x => new Row[A] {val data = x}),columns)
 
-class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends Table {
+class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends Table {
 
-  private var lokalData = dat
-  private var tableModel:PimpedTableModel[A,B] = new PimpedTableModel(data, columns)
-  private var lokalFiltered:Boolean = false
+  private var fallbackDat = initData
+  private var filteredDat = fallbackDat
+
+  private var tableModel:PimpedTableModel[A,B] = new PimpedTableModel(filteredData, columns)
+  private var savedFilter:Option[(A => Boolean)] = None
+
+  //private var lokalFiltered:Boolean = false
   private var blockSelectionEvents:Boolean = false
 
   val sorter = new TableRowSorter[PimpedTableModel[A,B]]() 
@@ -107,15 +111,24 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
       }
     }
   }
+  
+  private def fallbackData = fallbackDat
+  private def fallbackData_=(d:List[Row[A]]) = {
+    fallbackDat = d
+    savedFilter match {
+      case Some(f) => filteredData = fallbackData.filter(x => f(x.data))
+      case None    => filteredData = fallbackData
+    }
 
-  def data:List[Row[A]] = lokalData
+  }
 
-  def data_=(d:List[Row[A]])= {
+   
+  def filteredData = filteredDat
+  private def filteredData_= (d:List[Row[A]]) = {
     var sel = selectedData()
     blockSelectionEvents = true
-    lokalData = d
-    //triggerDataChange()
-    tableModel =  new PimpedTableModel(data, columns)
+    filteredDat = d
+    tableModel =  new PimpedTableModel(filteredData, columns)
     this.model = tableModel
     sorter setModel tableModel
     fillSorter
@@ -127,24 +140,50 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
     blockSelectionEvents = false
   }
 
+  def data:List[Row[A]] = fallbackData
+
+  def data_=(da:List[Row[A]])= {
+    fallbackData = da
+    /*var sel = selectedData()
+    blockSelectionEvents = true
+    fallbackData = da
+    //triggerDataChange()
+    tableModel =  new PimpedTableModel(filteredData, columns)
+    this.model = tableModel
+    sorter setModel tableModel
+    fillSorter
+    if(sel.size!=0 && !sel.map(select(_)).forall(x => x)) {
+      //System.out.println("something changed")
+      blockSelectionEvents = false
+      publish(TableRowsSelected(this, Range(0,0), true))
+    }
+    blockSelectionEvents = false*/
+  }
+
   /*private def triggerDataChange() = {
     
   }*/
 
-  def isFiltered() = lokalFiltered
+  def isFiltered() = savedFilter match {
+    case None    => false
+    case Some(_) => true
+  }
 
   def filter(p: (A) => Boolean):Unit = {
-    data = dat.filter(x => p(x.data))
-    lokalFiltered = true
+    //data = dat.filter(x => p(x.data))
+    savedFilter = Some(p)
+    filteredData = fallbackData.filter(x => p(x.data))
   }
 
   def unfilter():Unit = {
-    data = dat  
-    lokalFiltered = false
+    /*data = dat  
+    lokalFiltered = false*/
+    savedFilter = None
+    filteredData = fallbackData
   }
 
   def select(x:A):Boolean = {
-    data.map(_.data).indexOf(x) match {
+    filteredData.map(_.data).indexOf(x) match {
       case -1 => {false}
       case i  => {
         this.selection.rows += i
@@ -154,7 +193,7 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
   }
 
   def unselect(x:A):Boolean = {
-    data.map(_.data).indexOf(x) match {
+    filteredData.map(_.data).indexOf(x) match {
       case -1 => {false}
       case i  => {
         this.selection.rows -= i
@@ -165,7 +204,7 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
   
   listenTo(this.selection)
   reactions += {
-    case e@TableRowsSelected(_,_,_) => if(!blockSelectionEvents) publish(e)
+   case e@TableRowsSelected(_,_,_) => if(!blockSelectionEvents) publish(e) 
   }
 
   override def publish(e: Event):Unit = {
@@ -182,12 +221,12 @@ class PimpedTable[A, B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]]) 
   }
   
   def rendererComponentForPeerTable(isSelected: Boolean, focused: Boolean, row: Int, column: Int): Component = {
-    columns(column).renderComponent(data(this.peer.convertRowIndexToModel(row)).data, isSelected, focused)
+    columns(column).renderComponent(filteredData(this.peer.convertRowIndexToModel(row)).data, isSelected, focused)
   }
   
-  def selectedData():List[A] = this.selection.rows.toList.map(i => data(this.peer.convertRowIndexToModel(i)).data)
+  def selectedData():List[A] = this.selection.rows.toList.map(i => filteredData(this.peer.convertRowIndexToModel(i)).data)
 
-  data = dat
+  fallbackData = initData
 
 }
 
