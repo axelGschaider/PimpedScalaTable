@@ -41,42 +41,46 @@ trait ExpandedData[A] extends Row[A]{
   val father:A
 }
 
-trait ColumnFixer {
+
+
+
+trait TableBehaviourClient {
   def paintExpandColumn:Boolean = false
-  var columnValue:Int = -1
-  var columnNewValue:Int = -1
   def moveColumn(oldIndex:Int, newIndex:Int):Unit
   def reordering_=(allowe:Boolean)
   def reordering:Boolean
 }
 
-case class ColumFixingColumListener(x: ColumnFixer) extends TableColumnModelListener{
+case class TableBehaviourWorker(x: TableBehaviourClient) extends MouseAdapter with TableColumnModelListener {
+  
+  private var columnValue:Int = -1
+  private var columnNewValue:Int = -1
+  
   def columnSelectionChanged(e: ListSelectionEvent) {}
-  def columnMarginChanged(e: ChangeEvent) {}
+  def columnMarginChanged(e: ChangeEvent) {
+    
+  }
   def columnMoved(e: TableColumnModelEvent) {
     if(x.paintExpandColumn) {
       //println("column moved")
-      if(x.columnValue == -1) x.columnValue = e.getFromIndex
-      x.columnNewValue = e.getToIndex
+      if(columnValue == -1) columnValue = e.getFromIndex
+      columnNewValue = e.getToIndex
     }
   }
   def columnRemoved(e: TableColumnModelEvent) {}
   def columnAdded(e: TableColumnModelEvent) {}
-}
 
-case class ColumnFixingMouseListener(x: ColumnFixer) extends MouseAdapter {
   override def mouseReleased(e:MouseEvent) {
     if(x.paintExpandColumn) {
-      println("can i kick it?")
-      if(x.columnValue != -1 && (x.columnValue == 0 || x.columnNewValue == 0)) {
-        x.moveColumn(x.columnNewValue, x.columnValue)
-        println("get back!!!!")
+      if(columnValue != -1 && (columnValue == 0 || columnNewValue == 0)) {
+        x.moveColumn(columnNewValue, columnValue)
       } 
-      x.columnNewValue = -1
-      x.columnValue = -1
+      columnNewValue = -1
+      columnValue = -1
     }
   }
 }
+
 
 trait ColumnDescription[-A,+B] {
   val name:String
@@ -144,7 +148,7 @@ class ConvenientPimpedTable[A, B](dat:List[A], columns:List[ColumnDescription[A,
 
 case class PimpedTableSelectionEvent(s:Table) extends TableEvent(s)
 
-class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends Table with ColumnFixer {
+class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends Table with ColumnFixer with TableBehaviourClient {
 
   private var fallbackDat = initData
   private var filteredDat = fallbackDat
@@ -159,8 +163,10 @@ class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,
   def moveColumn(oldIndex:Int, newIndex:Int) = peer.moveColumn(oldIndex, newIndex)
   def reordering_=(allowe:Boolean) = peer.getTableHeader setReorderingAllowed allowe
   def reordering:Boolean = peer.getTableHeader.getReorderingAllowed
-  peer.getColumnModel().addColumnModelListener(ColumFixingColumListener(this))
-  peer.getTableHeader().addMouseListener(ColumnFixingMouseListener(this))
+  //peer.getColumnModel().addColumnModelListener(ColumFixingColumListener(this))
+  private val behaviourWorker = TableBehaviourWorker(this)
+  peer.getColumnModel().addColumnModelListener(behaviourWorker)
+  peer.getTableHeader().addMouseListener(behaviourWorker)
 
   //val groupColour:Option[java.awt.Color] = Some(Color.LIGHT_GRAY)
 
