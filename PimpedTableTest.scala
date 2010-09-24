@@ -31,12 +31,12 @@ sealed trait Value
 case class IntValue(i:Int) extends Value 
 case class StringValue(s:String) extends Value 
 
-case class RowData(data:Data) extends Row[Data] {
+/*case class RowData(data:Data) extends Row[Data] {
   override val isExpandable = true
   override def expandedData() = {
     (1 to 10).toList.map(x => Data(data.i, data.s + x.toString))
   }
-}
+}*/
 
 /*case class UnexpandableRowData(data:Data) extends RowData(data) {
   override val isExpandable = false
@@ -107,10 +107,15 @@ object Test extends SimpleSwingApplication {
     val framewidth = 480
     val frameheight = 480
 
-    val data:List[RowData] = (0 to 100).toList.map(x => RowData(Data(x, (100-x).toString + "xxx"))/*{
+    val data:List[Row[Data]] = (0 to 100).toList.map(x =>
+      DeadTree(Data(x, (100-x).toString + "xxx"))
+    )
+    /*val data:List[RowData] = (0 to 100).toList.map(x => RowData(Data(x, (100-x).toString + "xxx")){
       isExpandable = true
       expandedData = (0 to 10).toList.map(y => RowData(Data(x, (100-x).toString + "xxx"+y.toString)))
-    }*/) 
+    }) */
+    
+
     val columns:List[MyColumns[Value]] = List(new IntColumn("some int"), new StringColumn("some string") )
     val table = new PimpedTable(data, columns) {
       showGrid = true

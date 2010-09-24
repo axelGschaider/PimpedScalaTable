@@ -29,21 +29,23 @@ import java.util.EventObject
 import java.util.Comparator
 import java.awt.Color
 
-trait Row[A] {
+/*trait Row[A] {
   val data:A
   val isExpandable:Boolean = false
   def expandedData():List[A] = List.empty[A]
   var expanded:Boolean = false
   //val internalComparator:Option[Comparator[A]] = None
-}
+}*/
 
-trait Rowa[A] {
+trait Row[A] {
   val data:A
 }
 
-case class DeadTree[A](data:A) extends Rowa[A]
-case class Tree[A](data:A, leaves:List[Leaf[A]], internal:Option[Comparator[A]]) extends Rowa[A]
-case class Leaf[A](data:A, father:Tree[A]) extends Rowa[A]
+case class DeadTree[A](data:A) extends Row[A]
+case class Tree[A](data:A, leafData:List[A], internal:Option[Comparator[A]], var expanded:Boolean = false) extends Row[A] {
+  var leaves:List[Leaf[A]] = leafData.map(x => Leaf(x, this))
+}
+case class Leaf[A](data:A, father:Tree[A]) extends Row[A]
 
 /*trait UnexpandAbleRow[A] extends Row[A] {
   val isExpandable:Boolean = false
@@ -157,7 +159,11 @@ class PimpedTableModel[A,B](dat:List[Row[A]], columns:List[ColumnDescription[A,B
     }
     
     if(paintExpander && column == 0) {
-      data(row).isExpandable.asInstanceOf[java.lang.Object]
+      //data(row).isExpandable.asInstanceOf[java.lang.Object]
+      data(row) match {
+        case Tree(_,_,_,_) => true.asInstanceOf[java.lang.Object]
+        case _           => false.asInstanceOf[java.lang.Object]
+      }
     }
     else {
       (columns(column - expOffset) extractValue data(row).data).asInstanceOf[java.lang.Object]
