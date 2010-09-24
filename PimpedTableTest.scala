@@ -34,10 +34,6 @@ case class StringValue(s:String) extends Value
 case class RowData(data:Data) extends Row[Data]
 
 sealed trait MyColumns[+Value] extends ColumnDescription[Data, Value] {
-  /*def firstIsBigger(x:Data, y:Data) = (this extractValue x,this extractValue y) match {
-    case (IntValue(i1),    IntValue(i2))    => i1 > i2
-    case (StringValue(s1), StringValue(s2)) => s1 > s2
-  }*/
   
   override val isSortable = true
 
@@ -65,9 +61,10 @@ case class StringColumn(name:String) extends MyColumns[StringValue] {
   def extractValue(x:Data) = StringValue(x.s)
   def comparator = Some(new Comparator[StringValue] {
     def compare(o1:StringValue, o2:StringValue):Int = (o1,o2) match {
-      case (StringValue(s1), StringValue(s2)) => if(s1 < s2) -1
-                                                 else if (s1 > s2) 1
-                                                 else 0
+      case (StringValue(s1), StringValue(s2)) => 
+        if(s1 < s2) -1
+        else if (s1 > s2) 1
+        else 0
     }
   })
 
@@ -79,9 +76,10 @@ case class IntColumn(name:String) extends MyColumns[IntValue] {
   def comparator = Some(new Comparator[IntValue] {
     
     def compare(o1:IntValue, o2:IntValue):Int = (o1,o2) match {
-      case (IntValue(i1), IntValue(i2)) => if(i1 < i2) -1
-                                           else if (i1 > i2) 1
-                                           else 0
+      case (IntValue(i1), IntValue(i2)) => 
+        if(i1 < i2) -1
+        else if (i1 > i2) 1
+        else 0
     }
   })
 

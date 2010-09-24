@@ -62,7 +62,6 @@ case class TableBehaviourWorker(x: TableBehaviourClient) extends MouseAdapter wi
     marginChanged = true
   }
   def columnMoved(e: TableColumnModelEvent) {
-      //println("column moved")
     if(columnValue == -1) columnValue = e.getFromIndex
     columnNewValue = e.getToIndex
   }
@@ -70,6 +69,7 @@ case class TableBehaviourWorker(x: TableBehaviourClient) extends MouseAdapter wi
   def columnAdded(e: TableColumnModelEvent) {}
 
   override def mouseReleased(e:MouseEvent) {
+    var takeNewData = false
     if(x.paintExpandColumn) {
       if(columnValue != -1 && (columnValue == 0 || columnNewValue == 0)) {
         x.moveColumn(columnNewValue, columnValue)
@@ -78,17 +78,23 @@ case class TableBehaviourWorker(x: TableBehaviourClient) extends MouseAdapter wi
         println("fixed it")
       } 
     }
-    if(columnValue != -1) {
+    if(columnValue != -1 && columnValue != columnNewValue) {
       println(columnValue + " -> " + columnNewValue)
+      takeNewData = true
     }
 
     if(marginChanged) {
       println("Margin changed")
+      takeNewData = true
+    }
+
+    if(takeNewData) {
+      println("take new data")
     }
 
     columnNewValue = -1
     columnValue = -1
-    marginChanged = true
+    marginChanged = false
   }
 }
 
@@ -120,7 +126,7 @@ class PimpedTableModel[A,B](dat:List[Row[A]], columns:List[ColumnDescription[A,B
     lokalData = d
   }
 
-  def getRowCount():Int = data.length + expOffset
+  def getRowCount():Int = data.length
 
   def getColumnCount():Int = columns.length + expOffset
 
@@ -129,22 +135,14 @@ class PimpedTableModel[A,B](dat:List[Row[A]], columns:List[ColumnDescription[A,B
     if(row < 0 || column < 0 || column >= columns.length + expOffset || row >= data.length) {
       throw new Error("Bad Table Index: row " + row + " column " + column)
     }
-
+    
     if(paintExpander && column == 0) {
       data(row).isExpandable.asInstanceOf[java.lang.Object]
     }
     else {
       (columns(column - expOffset) extractValue data(row).data).asInstanceOf[java.lang.Object]
     }
-    
   }
-
-  /*def getNiceValue(row:Int, column:Int): B = {
-    if(row < 0 || column < 0 || column >= columns.length || row >= data.length) {
-      throw new Error("Bad Table Index: row " + row + " column " + column)
-    }
-    columns(column) extractValue data(row).data
-  }*/
 
   override def getColumnName(column: Int): String = {
     if(paintExpander && column == 0) {
@@ -193,12 +191,14 @@ class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,
   //peer.getColumnModel.addColumnModelListener()
 
   private def fillSorter = {
+    val offset = if(paintExpandColumn) 1 else 0
+
     columns.zipWithIndex filter {x => x match {
       case (colDes,_) => colDes.isSortable
     }} foreach {x => x match {
           case (colDes,i) => { colDes.comparator match {
             case None    => {}
-            case Some(c) => sorter.setComparator(i, c)
+            case Some(c) => sorter.setComparator(i+offset, c)
           }
         }
       }
@@ -226,10 +226,17 @@ class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,
     sorter setModel tableModel
     fillSorter
     if(sel.size!=0 && !sel.map(select(_)).forall(x => x)) {
-      //System.out.println("something changed")
       blockSelectionEvents = false
       publish(PimpedTableSelectionEvent(this))
     }
+    
+    if(paintExpandColumn) {
+      val col = peer.getTableHeader.getColumnModel.getColumn(0)
+      col setWidth 30
+      col setMinWidth 30
+      col setMaxWidth 30
+    }
+
     blockSelectionEvents = false
   }
 
