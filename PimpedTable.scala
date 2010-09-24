@@ -55,17 +55,16 @@ case class TableBehaviourWorker(x: TableBehaviourClient) extends MouseAdapter wi
   
   private var columnValue:Int = -1
   private var columnNewValue:Int = -1
+  private var marginChanged:Boolean = false
   
   def columnSelectionChanged(e: ListSelectionEvent) {}
   def columnMarginChanged(e: ChangeEvent) {
-    
+    marginChanged = true
   }
   def columnMoved(e: TableColumnModelEvent) {
-    if(x.paintExpandColumn) {
       //println("column moved")
-      if(columnValue == -1) columnValue = e.getFromIndex
-      columnNewValue = e.getToIndex
-    }
+    if(columnValue == -1) columnValue = e.getFromIndex
+    columnNewValue = e.getToIndex
   }
   def columnRemoved(e: TableColumnModelEvent) {}
   def columnAdded(e: TableColumnModelEvent) {}
@@ -74,10 +73,22 @@ case class TableBehaviourWorker(x: TableBehaviourClient) extends MouseAdapter wi
     if(x.paintExpandColumn) {
       if(columnValue != -1 && (columnValue == 0 || columnNewValue == 0)) {
         x.moveColumn(columnNewValue, columnValue)
+        columnNewValue = -1
+        columnValue = -1 
+        println("fixed it")
       } 
-      columnNewValue = -1
-      columnValue = -1
     }
+    if(columnValue != -1) {
+      println(columnValue + " -> " + columnNewValue)
+    }
+
+    if(marginChanged) {
+      println("Margin changed")
+    }
+
+    columnNewValue = -1
+    columnValue = -1
+    marginChanged = true
   }
 }
 
@@ -148,7 +159,7 @@ class ConvenientPimpedTable[A, B](dat:List[A], columns:List[ColumnDescription[A,
 
 case class PimpedTableSelectionEvent(s:Table) extends TableEvent(s)
 
-class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends Table with ColumnFixer with TableBehaviourClient {
+class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends Table with TableBehaviourClient {
 
   private var fallbackDat = initData
   private var filteredDat = fallbackDat
