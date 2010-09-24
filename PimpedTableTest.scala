@@ -26,12 +26,10 @@ import java.util.Comparator
 
 case class Data(i:Int, s:String)
 
-sealed trait Value extends ColumnValue[Data] {
-  val father = null
-}
+sealed trait Value extends ColumnValue[Data] 
 
-case class IntValue(i:Int) extends Value 
-case class StringValue(s:String) extends Value 
+case class IntValue(i:Int, father:Row[Data]) extends Value 
+case class StringValue(s:String, father:Row[Data]) extends Value 
 
 /*case class RowData(data:Data) extends Row[Data] {
   override val isExpandable = true
@@ -49,13 +47,13 @@ sealed trait MyColumns[+Value] extends ColumnDescription[Data, Value] {
   
   override val isSortable = true
 
-  def renderComponent(data:Data, isSelected: Boolean, focused: Boolean, isExpanded:Boolean):Component = {
+  def renderComponent(data:Row[Data], isSelected: Boolean, focused: Boolean, isExpanded:Boolean):Component = {
     
     val l = new Label()
 
     extractValue(data) match {
-      case StringValue(s) => l.text = s
-      case IntValue(i)    => l.text = i.toString
+      case StringValue(s,_) => l.text = s
+      case IntValue(i,_)    => l.text = i.toString
     }
 
     if(isSelected) {
@@ -70,11 +68,11 @@ sealed trait MyColumns[+Value] extends ColumnDescription[Data, Value] {
 }
 
 case class StringColumn(name:String) extends MyColumns[StringValue] {
-  override val isSortable = false
-  def extractValue(x:Data) = StringValue(x.s)
+  //override val isSortable = false
+  def extractValue(x:Row[Data]) = StringValue(x.data.s, x)
   def comparator = Some(new Comparator[StringValue] {
     def compare(o1:StringValue, o2:StringValue):Int = (o1,o2) match {
-      case (StringValue(s1), StringValue(s2)) => 
+      case (StringValue(s1,_), StringValue(s2,_)) => 
         if(s1 < s2) -1
         else if (s1 > s2) 1
         else 0
@@ -84,12 +82,12 @@ case class StringColumn(name:String) extends MyColumns[StringValue] {
 }
 
 case class IntColumn(name:String) extends MyColumns[IntValue] {
-  def extractValue(x:Data) = IntValue(x.i)
+  def extractValue(x:Row[Data]) = IntValue(x.data.i, x)
 
   def comparator = Some(new Comparator[IntValue] {
     
     def compare(o1:IntValue, o2:IntValue):Int = (o1,o2) match {
-      case (IntValue(i1), IntValue(i2)) => 
+      case (IntValue(i1,_), IntValue(i2,_)) => 
         if(i1 < i2) -1
         else if (i1 > i2) 1
         else 0
@@ -125,6 +123,7 @@ object Test extends SimpleSwingApplication {
       gridColor = Color.BLACK
       selectionBackground = Color.RED
       selectionForeground = Color.GREEN
+      paintExpandColumn = true
     }
 
     
@@ -135,12 +134,12 @@ object Test extends SimpleSwingApplication {
     val buttonPannel = new GridBagPanel() {
       add(new Button(Action("Test") {
             //println("Test:")
-            table.paintExpandColumn = !table.paintExpandColumn
+            //table.paintExpandColumn = !table.paintExpandColumn
             //table unselectAll// data(0).data*/
-            /*if(table.isFiltered) table.unfilter
+            if(table.isFiltered) table.unfilter
             else table filter (_ match {
               case Data(i, _) => i%2 == 0
-            })*/
+            })
             //table.data = (0 to 101).toList.map(x => RowData(Data(x, (100-x).toString + "xxx")))
           })
         , new Constraints() {

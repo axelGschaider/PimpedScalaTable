@@ -23,6 +23,7 @@ import javax.swing.JTable
 import scala.swing.event._
 import javax.swing.table.AbstractTableModel
 import javax.swing.table.TableRowSorter
+import javax.swing.RowSorter.SortKey
 import javax.swing.event.{ListSelectionEvent, TableColumnModelListener, ChangeEvent, TableColumnModelEvent}
 import java.awt.event.{MouseEvent, MouseAdapter}
 import java.util.EventObject
@@ -37,11 +38,11 @@ import java.awt.Color
   //val internalComparator:Option[Comparator[A]] = None
 }*/
 
-trait ColumnValue[A] {
-  val father:A
+trait ColumnValue[-A] {
+  val father:Row[_ >: A]
 }
 
-trait Row[A] {
+trait Row[+A] {
   val data:A
 }
 
@@ -107,10 +108,10 @@ case class TableBehaviourWorker(x: TableBehaviourClient) extends MouseAdapter wi
 }
 
 
-trait ColumnDescription[-A,+B] {
+trait ColumnDescription[-A, +B] {
   val name:String
 
-  def extractValue(x:A):B
+  def extractValue(x:Row[A]):ColumnValue[_ <: B]
 
   val isSortable:Boolean = false
 
@@ -118,12 +119,15 @@ trait ColumnDescription[-A,+B] {
 
   val paintGroupColourWhileExpanding:Boolean = false
 
-  def renderComponent(data:A, isSelected: Boolean, focused: Boolean, isExpanded: Boolean):Component
+  def renderComponent(data:Row[A], isSelected: Boolean, focused: Boolean, isExpanded: Boolean):Component
 
   def comparator: Option[Comparator[_ <: B]]
 }
 
-class PimpedTableModel[A,B](dat:List[Row[A]], columns:List[ColumnDescription[A,B]], var paintExpander:Boolean = false) extends AbstractTableModel {
+//trait ColumnDescriptionDirtyWorkaround[A, B <: ColumnValue[A] ] extends ColumnDescription[A, B]
+
+
+class PimpedTableModel[A,B <: ColumnValue[A] ](dat:List[Row[A]], columns:List[ColumnDescription[A,B]], var paintExpander:Boolean = false) extends AbstractTableModel {
   private var lokalData = dat
   
   private def expOffset = if (paintExpander) 1 else 0
@@ -152,7 +156,7 @@ class PimpedTableModel[A,B](dat:List[Row[A]], columns:List[ColumnDescription[A,B
       }
     }
     else {
-      (columns(column - expOffset) extractValue data(row).data).asInstanceOf[java.lang.Object]
+      (columns(column - expOffset) extractValue data(row)/*.data*/).asInstanceOf[java.lang.Object]
     }
   }
 
@@ -162,6 +166,53 @@ class PimpedTableModel[A,B](dat:List[Row[A]], columns:List[ColumnDescription[A,B
     } else {
       columns(column - expOffset).name
     }
+  }
+}
+
+class PimpedColumnComparator[A, B](comp:Comparator[B], myColumn:Int, mother:SortInfo) extends Comparator[B] {
+  override def compare(o1:B, o2:B):Int = (o1, o2) match {
+    case (s1:ColumnValue[A], s2:ColumnValue[A]) => internalCompare(s1,s2) match {
+      case Some(i) => i
+      case None    => comp.compare(o1, o2)
+    }
+    case _                                      => comp.compare(o1, o2)
+  }
+  
+  private def internalCompare(v1:ColumnValue[A], v2:ColumnValue[A]):Option[Int] = (v1, v2) match {
+    case(_,_) => None
+    //println("BIN DA!!!!!! " + v1 + " / " + v2)
+    //println(mother.column + ": " +mother.getSortOrder)
+    //None
+  }
+  
+  
+  //comp.compare(o1, o2)
+
+  //def blabla(o1:B):A = o1.father
+
+}
+
+sealed trait SortOrder
+case object Ascending extends SortOrder
+case object Descending extends SortOrder
+case object NoSort extends SortOrder
+
+class SortInfo(sorter:TableRowSorter[_], val column:Int) {
+
+  def getSortOrder():SortOrder = {
+    val i = sorter.getSortKeys().iterator
+    var ret:SortOrder = NoSort
+
+    while(i.hasNext) {
+      val key = i.next
+      if(key.getColumn == column) {
+        val ord = key.getSortOrder
+        if(ord == javax.swing.SortOrder.ASCENDING) ret = Ascending
+        else if(ord == javax.swing.SortOrder.DESCENDING) ret = Descending
+      }
+    }
+
+    ret
   }
 }
 
@@ -187,6 +238,7 @@ class PimpedTable[A, B <: ColumnValue[A]](initData:List[Row[A]], columns:List[Co
   private val behaviourWorker = TableBehaviourWorker(this)
   peer.getColumnModel().addColumnModelListener(behaviourWorker)
   peer.getTableHeader().addMouseListener(behaviourWorker)
+  
 
 
   private var tableModel:PimpedTableModel[A,B] = new PimpedTableModel(filteredData, columns, paintExpandColumn)
@@ -194,7 +246,8 @@ class PimpedTable[A, B <: ColumnValue[A]](initData:List[Row[A]], columns:List[Co
 
   private var blockSelectionEvents:Boolean = false
 
-  val sorter = new TableRowSorter[PimpedTableModel[A,B]]() 
+  val sorter = new TableRowSorter[PimpedTableModel[A,B]]()
+  sorter.setSortsOnUpdates(true)
   this.peer.setRowSorter(sorter)
 
   private def fillSorter = {
@@ -209,7 +262,7 @@ class PimpedTable[A, B <: ColumnValue[A]](initData:List[Row[A]], columns:List[Co
       case (colDes,i) => { colDes.comparator match {
         case None    => sorter.setSortable(i, true)
         case Some(c) => {
-          sorter.setComparator(i+offset, c)
+          sorter.setComparator(i+offset, new PimpedColumnComparator(c,i+offset, new SortInfo(sorter, i+offset)))
           sorter.setSortable(i,true)
         }
             }
@@ -238,16 +291,20 @@ class PimpedTable[A, B <: ColumnValue[A]](initData:List[Row[A]], columns:List[Co
   def filteredData = filteredDat
   private def filteredData_= (d:List[Row[A]]) = {
     var sel = selectedData()
+    var sortkeys = sorter.getSortKeys
     blockSelectionEvents = true
     filteredDat = d
     tableModel =  new PimpedTableModel(filteredData, columns, paintExpandColumn)
     this.model = tableModel
     sorter setModel tableModel
     fillSorter
+    //sorter.sort()
     if(sel.size!=0 && !sel.map(select(_)).forall(x => x)) {
       blockSelectionEvents = false
       publish(PimpedTableSelectionEvent(this))
     }
+
+    sorter setSortKeys sortkeys
     
     if(paintExpandColumn) {
       val col = peer.getTableHeader.getColumnModel.getColumn(0)
@@ -255,6 +312,7 @@ class PimpedTable[A, B <: ColumnValue[A]](initData:List[Row[A]], columns:List[Co
       col setMinWidth 30
       col setMaxWidth 30
     }
+
 
     blockSelectionEvents = false
   }
@@ -339,11 +397,11 @@ class PimpedTable[A, B <: ColumnValue[A]](initData:List[Row[A]], columns:List[Co
       }
       else {
         val c = convertedColumn(column)-1
-        if(c >= 0) columns(c).renderComponent(filteredData(convertedRow(row)).data, isSelected, focused, /*TODO*/false)
+        if(c >= 0) columns(c).renderComponent(filteredData(convertedRow(row)), isSelected, focused, /*TODO*/false)
         else {/*println("Föhlah: " + c); */new Label("")}
       }
     } else {
-      columns(convertedColumn(column)).renderComponent(filteredData(convertedRow(row)).data, isSelected, focused, /*TODO*/false)
+      columns(convertedColumn(column)).renderComponent(filteredData(convertedRow(row)), isSelected, focused, /*TODO*/false)
     }
   }
   
