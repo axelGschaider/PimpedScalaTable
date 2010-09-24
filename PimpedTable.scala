@@ -37,6 +37,10 @@ import java.awt.Color
   //val internalComparator:Option[Comparator[A]] = None
 }*/
 
+trait ColumnValue[A] {
+  val father:A
+}
+
 trait Row[A] {
   val data:A
 }
@@ -46,24 +50,6 @@ case class Tree[A](data:A, leafData:List[A], internal:Option[Comparator[A]], var
   var leaves:List[Leaf[A]] = leafData.map(x => Leaf(x, this))
 }
 case class Leaf[A](data:A, father:Tree[A]) extends Row[A]
-
-/*trait UnexpandAbleRow[A] extends Row[A] {
-  val isExpandable:Boolean = false
-  def expandedData():List[A] = List.empty[A]
-  var expanded:Boolean = false
-}
-
-trait ExpandableRow[A] extends Row[A] {
-  val isExpandable:Boolean = false
-  var expanded:Boolean = false
-
-}*/
-
-/*trait ExpandedData[A] extends Row[A]{
-  val father:A
-}*/
-
-
 
 
 trait TableBehaviourClient {
@@ -179,11 +165,11 @@ class PimpedTableModel[A,B](dat:List[Row[A]], columns:List[ColumnDescription[A,B
   }
 }
 
-class ConvenientPimpedTable[A, B](dat:List[A], columns:List[ColumnDescription[A,B]]) extends PimpedTable[A, B](dat.map(x => new Row[A] {val data = x}),columns) 
+class ConvenientPimpedTable[A, B <: ColumnValue[A]](dat:List[A], columns:List[ColumnDescription[A,B]]) extends PimpedTable[A, B](dat.map(x => new Row[A] {val data = x}),columns) 
 
 case class PimpedTableSelectionEvent(s:Table) extends TableEvent(s)
 
-class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends Table with TableBehaviourClient {
+class PimpedTable[A, B <: ColumnValue[A]](initData:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends Table with TableBehaviourClient {
 
   private var fallbackDat = initData
   private var filteredDat = fallbackDat
@@ -212,16 +198,28 @@ class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,
   this.peer.setRowSorter(sorter)
 
   private def fillSorter = {
-    val offset = if(paintExpandColumn) 1 else 0
+    val offset = if(paintExpandColumn) {
+                    sorter.setSortable(0, false)
+                    1
+                 } else 0
 
     columns.zipWithIndex filter {x => x match {
       case (colDes,_) => colDes.isSortable
     }} foreach {x => x match {
-          case (colDes,i) => { colDes.comparator match {
-            case None    => {}
-            case Some(c) => sorter.setComparator(i+offset, c)
+      case (colDes,i) => { colDes.comparator match {
+        case None    => sorter.setSortable(i, true)
+        case Some(c) => {
+          sorter.setComparator(i+offset, c)
+          sorter.setSortable(i,true)
+        }
+            }
           }
         }
+    }
+
+    columns.zipWithIndex foreach {
+      x => x match {
+        case (colDes,i) => if (!colDes.isSortable) sorter.setSortable(i, false)
       }
     }
   }

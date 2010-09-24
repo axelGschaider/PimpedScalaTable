@@ -26,7 +26,9 @@ import java.util.Comparator
 
 case class Data(i:Int, s:String)
 
-sealed trait Value 
+sealed trait Value extends ColumnValue[Data] {
+  val father = null
+}
 
 case class IntValue(i:Int) extends Value 
 case class StringValue(s:String) extends Value 
@@ -68,6 +70,7 @@ sealed trait MyColumns[+Value] extends ColumnDescription[Data, Value] {
 }
 
 case class StringColumn(name:String) extends MyColumns[StringValue] {
+  override val isSortable = false
   def extractValue(x:Data) = StringValue(x.s)
   def comparator = Some(new Comparator[StringValue] {
     def compare(o1:StringValue, o2:StringValue):Int = (o1,o2) match {
