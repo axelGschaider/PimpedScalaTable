@@ -32,14 +32,34 @@ import java.awt.Color
 trait Row[A] {
   val data:A
   val isExpandable:Boolean = false
-  def expandedData():List[ExpandedData[A]] = List.empty[ExpandedData[A]]
+  def expandedData():List[A] = List.empty[A]
   var expanded:Boolean = false
-  val internalComparator:Option[Comparator[A]] = None
+  //val internalComparator:Option[Comparator[A]] = None
 }
 
-trait ExpandedData[A] extends Row[A]{
-  val father:A
+trait Rowa[A] {
+  val data:A
 }
+
+case class DeadTree[A](data:A) extends Rowa[A]
+case class Tree[A](data:A, leaves:List[Leaf[A]], internal:Option[Comparator[A]]) extends Rowa[A]
+case class Leaf[A](data:A, father:Tree[A]) extends Rowa[A]
+
+/*trait UnexpandAbleRow[A] extends Row[A] {
+  val isExpandable:Boolean = false
+  def expandedData():List[A] = List.empty[A]
+  var expanded:Boolean = false
+}
+
+trait ExpandableRow[A] extends Row[A] {
+  val isExpandable:Boolean = false
+  var expanded:Boolean = false
+
+}*/
+
+/*trait ExpandedData[A] extends Row[A]{
+  val father:A
+}*/
 
 
 
@@ -172,23 +192,18 @@ class PimpedTable[A, B](initData:List[Row[A]], columns:List[ColumnDescription[A,
   def moveColumn(oldIndex:Int, newIndex:Int) = peer.moveColumn(oldIndex, newIndex)
   def reordering_=(allowe:Boolean) = peer.getTableHeader setReorderingAllowed allowe
   def reordering:Boolean = peer.getTableHeader.getReorderingAllowed
-  //peer.getColumnModel().addColumnModelListener(ColumFixingColumListener(this))
   private val behaviourWorker = TableBehaviourWorker(this)
   peer.getColumnModel().addColumnModelListener(behaviourWorker)
   peer.getTableHeader().addMouseListener(behaviourWorker)
 
-  //val groupColour:Option[java.awt.Color] = Some(Color.LIGHT_GRAY)
 
   private var tableModel:PimpedTableModel[A,B] = new PimpedTableModel(filteredData, columns, paintExpandColumn)
   private var savedFilter:Option[(A => Boolean)] = None
 
-  //private var lokalFiltered:Boolean = false
   private var blockSelectionEvents:Boolean = false
 
   val sorter = new TableRowSorter[PimpedTableModel[A,B]]() 
   this.peer.setRowSorter(sorter)
-
-  //peer.getColumnModel.addColumnModelListener()
 
   private def fillSorter = {
     val offset = if(paintExpandColumn) 1 else 0
