@@ -47,10 +47,10 @@ trait Row[+A] {
 }
 
 case class DeadTree[A](data:A) extends Row[A]
-case class Tree[A](data:A, leafData:List[A], internal:Option[Comparator[A]], var expanded:Boolean = false) extends Row[A] {
+case class LivingTree[A](data:A, leafData:List[A], internal:Option[Comparator[A]], var expanded:Boolean = false) extends Row[A] {
   var leaves:List[Leaf[A]] = leafData.map(x => Leaf(x, this))
 }
-case class Leaf[A](data:A, father:Tree[A]) extends Row[A]
+case class Leaf[A](data:A, father:LivingTree[A]) extends Row[A]
 
 
 trait TableBehaviourClient {
@@ -151,8 +151,8 @@ class PimpedTableModel[A,B <: ColumnValue[A] ](dat:List[Row[A]], columns:List[Co
     if(paintExpander && column == 0) {
       //data(row).isExpandable.asInstanceOf[java.lang.Object]
       data(row) match {
-        case Tree(_,_,_,_) => true.asInstanceOf[java.lang.Object]
-        case _           => false.asInstanceOf[java.lang.Object]
+        case LivingTree(_,_,_,_) => true.asInstanceOf[java.lang.Object]
+        case _                   => false.asInstanceOf[java.lang.Object]
       }
     }
     else {
@@ -287,13 +287,20 @@ class PimpedTable[A, B <: ColumnValue[A]](initData:List[Row[A]], columns:List[Co
 
   }
 
+  private def expandData(l:List[Row[A]]):List[Row[A]] = l match {
+    case List() => List.empty[Row[A]]
+    case _      => l.head match {
+      case a@LivingTree(_,_,_,true) => (l.head +: a.leaves) ++ expandData(l.tail)
+      case _                        => l.head +: expandData(l.tail)
+    }
+  }
    
   def filteredData = filteredDat
   private def filteredData_= (d:List[Row[A]]) = {
     var sel = selectedData()
     var sortkeys = sorter.getSortKeys
     blockSelectionEvents = true
-    filteredDat = d
+    filteredDat = expandData(d)
     tableModel =  new PimpedTableModel(filteredData, columns, paintExpandColumn)
     this.model = tableModel
     sorter setModel tableModel
@@ -392,7 +399,14 @@ class PimpedTable[A, B <: ColumnValue[A]](initData:List[Row[A]], columns:List[Co
         //TODO
         new Label() {
           opaque = true
-          background = Color.RED
+          filteredData(convertedRow(row)) match {
+            case DeadTree(_)         => background = Color.BLACK//RED
+            case LivingTree(_,_,_,_) => background = Color.GREEN
+            case Leaf(_,_)           => background = Color.WHITE
+          }
+          if(isSelected) {
+            background = Color.BLUE
+          }
         }
       }
       else {

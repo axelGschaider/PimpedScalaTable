@@ -97,6 +97,8 @@ case class IntColumn(name:String) extends MyColumns[IntValue] {
 }
 
 
+
+
 object Test extends SimpleSwingApplication {
   def top = new MainFrame {
     title = "Table Test"
@@ -108,9 +110,23 @@ object Test extends SimpleSwingApplication {
     val framewidth = 480
     val frameheight = 480
 
-    val data:List[Row[Data]] = (0 to 100).toList.map(x =>
+    val data:List[Row[Data]] = (0 to 100).toList.filter(_%3 == 0).map(x =>
       DeadTree(Data(x, (100-x).toString + "xxx"))
-    )
+    ) ++ (0 to 100).toList.filter(_%3 == 1).map(x =>
+      DeadTree(Data(x, (100-x).toString + "xxx"))
+    ) ++ (0 to 100).toList.filter(_%3 == 2).map(x =>
+      (LivingTree((Data(x, (100-x).toString + "xxx"))
+                ,(0 to 9).toList.map(y =>
+                    Data(x, (100-x).toString + "xxx" + y.toString))
+                ,None
+                ,false))
+    ) ++ (101 to 102).toList.map(x =>
+      (LivingTree((Data(x, (100-x).toString + "xxx"))
+                ,(0 to 9).toList.map(y =>
+                    Data(x, (100-x).toString + "xxx" + y.toString))
+                ,None
+                ,true))
+    ) 
     /*val data:List[RowData] = (0 to 100).toList.map(x => RowData(Data(x, (100-x).toString + "xxx")){
       isExpandable = true
       expandedData = (0 to 10).toList.map(y => RowData(Data(x, (100-x).toString + "xxx"+y.toString)))
