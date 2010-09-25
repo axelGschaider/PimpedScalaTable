@@ -29,6 +29,7 @@ import java.awt.event.{MouseEvent, MouseAdapter}
 import java.util.EventObject
 import java.util.Comparator
 import java.awt.Color
+import scala.annotation.unchecked.uncheckedVariance
 
 /*trait Row[A] {
   val data:A
@@ -59,6 +60,8 @@ trait TableBehaviourClient {
   def reordering_=(allowe:Boolean)
   def reordering:Boolean
 }
+
+trait ComparatorRelais[+B] extends java.util.Comparator[B @uncheckedVariance]
 
 case class TableBehaviourWorker(x: TableBehaviourClient) extends MouseAdapter with TableColumnModelListener {
   
@@ -121,10 +124,10 @@ trait ColumnDescription[-A, +B] {
 
   def renderComponent(data:Row[A], isSelected: Boolean, focused: Boolean, isExpanded: Boolean):Component
 
-  def comparator: Option[Comparator[_ <: B]]
+  def comparator: Option[ComparatorRelais[B]]
+  //def comparator: /*Option[Comparator[ColumnValue[_ <: A]]]*/Option[Comparator[_ <: B]]
 }
 
-//trait ColumnDescriptionDirtyWorkaround[A, B <: ColumnValue[A] ] extends ColumnDescription[A, B]
 
 
 class PimpedTableModel[A,B <: ColumnValue[A] ](dat:List[Row[A]], columns:List[ColumnDescription[A,B]], var paintExpander:Boolean = false) extends AbstractTableModel {
@@ -169,7 +172,7 @@ class PimpedTableModel[A,B <: ColumnValue[A] ](dat:List[Row[A]], columns:List[Co
   }
 }
 
-class PimpedColumnComparator[A, B](comp:Comparator[B], myColumn:Int, mother:SortInfo) extends Comparator[B] {
+class PimpedColumnComparator[A,B <: ColumnValue[A]](comp:Comparator[B], col:ColumnDescription[A,B], colIndex:Int, mother:SortInfo) extends Comparator[B] {
   override def compare(o1:B, o2:B):Int = (o1, o2) match {
     case (s1:ColumnValue[A], s2:ColumnValue[A]) => internalCompare(s1,s2) match {
       case Some(i) => i
@@ -179,16 +182,10 @@ class PimpedColumnComparator[A, B](comp:Comparator[B], myColumn:Int, mother:Sort
   }
   
   private def internalCompare(v1:ColumnValue[A], v2:ColumnValue[A]):Option[Int] = (v1, v2) match {
-    case(_,_) => None
-    //println("BIN DA!!!!!! " + v1 + " / " + v2)
-    //println(mother.column + ": " +mother.getSortOrder)
-    //None
-  }
-  
-  
-  //comp.compare(o1, o2)
 
-  //def blabla(o1:B):A = o1.father
+    case(_,_) => None
+    
+  }
 
 }
 
@@ -197,7 +194,7 @@ case object Ascending extends SortOrder
 case object Descending extends SortOrder
 case object NoSort extends SortOrder
 
-class SortInfo(sorter:TableRowSorter[_], val column:Int) {
+class SortInfo(sorter:TableRowSorter[_], val column:Int ) {
 
   def getSortOrder():SortOrder = {
     val i = sorter.getSortKeys().iterator
@@ -262,7 +259,7 @@ class PimpedTable[A, B <: ColumnValue[A]](initData:List[Row[A]], columns:List[Co
       case (colDes,i) => { colDes.comparator match {
         case None    => sorter.setSortable(i, true)
         case Some(c) => {
-          sorter.setComparator(i+offset, new PimpedColumnComparator(c,i+offset, new SortInfo(sorter, i+offset)))
+          sorter.setComparator(i+offset, new PimpedColumnComparator[A,B](c, colDes, i+offset, new SortInfo(sorter, i+offset)))
           sorter.setSortable(i,true)
         }
             }
@@ -277,6 +274,10 @@ class PimpedTable[A, B <: ColumnValue[A]](initData:List[Row[A]], columns:List[Co
     }
   }
   
+  def refresh() = {
+    data = data
+  }
+
   private def fallbackData = fallbackDat
   private def fallbackData_=(d:List[Row[A]]) = {
     fallbackDat = d
@@ -328,20 +329,6 @@ class PimpedTable[A, B <: ColumnValue[A]](initData:List[Row[A]], columns:List[Co
 
   def data_=(da:List[Row[A]])= {
     fallbackData = da
-    /*var sel = selectedData()
-    blockSelectionEvents = true
-    fallbackData = da
-    //triggerDataChange()
-    tableModel =  new PimpedTableModel(filteredData, columns)
-    this.model = tableModel
-    sorter setModel tableModel
-    fillSorter
-    if(sel.size!=0 && !sel.map(select(_)).forall(x => x)) {
-      //System.out.println("something changed")
-      blockSelectionEvents = false
-      publish(TableRowsSelected(this, Range(0,0), true))
-    }
-    blockSelectionEvents = false*/
   }
 
   def isFiltered() = savedFilter match {

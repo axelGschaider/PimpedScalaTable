@@ -70,7 +70,7 @@ sealed trait MyColumns[+Value] extends ColumnDescription[Data, Value] {
 case class StringColumn(name:String) extends MyColumns[StringValue] {
   //override val isSortable = false
   def extractValue(x:Row[Data]) = StringValue(x.data.s, x)
-  def comparator = Some(new Comparator[StringValue] {
+  def comparator = Some(new ComparatorRelais[StringValue] {
     def compare(o1:StringValue, o2:StringValue):Int = (o1,o2) match {
       case (StringValue(s1,_), StringValue(s2,_)) => 
         if(s1 < s2) -1
@@ -84,7 +84,7 @@ case class StringColumn(name:String) extends MyColumns[StringValue] {
 case class IntColumn(name:String) extends MyColumns[IntValue] {
   def extractValue(x:Row[Data]) = IntValue(x.data.i, x)
 
-  def comparator = Some(new Comparator[IntValue] {
+  def comparator = Some(new ComparatorRelais[IntValue] {
     
     def compare(o1:IntValue, o2:IntValue):Int = (o1,o2) match {
       case (IntValue(i1,_), IntValue(i2,_)) => 
@@ -110,6 +110,20 @@ object Test extends SimpleSwingApplication {
     val framewidth = 480
     val frameheight = 480
 
+    val lt1 = LivingTree(Data(101, "201xxx")
+                        , (0 to 9).toList.map(y =>
+                            Data(y+1, "201xxx"+y.toString))
+                        , None
+                        , true
+                        )
+
+    val lt2 = LivingTree(Data(101, "202xxx")
+                        , (0 to 9).toList.map(y =>
+                            Data(y+1, "202xxx"+y.toString))
+                        , None
+                        , true
+                        )
+
     val data:List[Row[Data]] = (0 to 100).toList.filter(_%3 == 0).map(x =>
       DeadTree(Data(x, (100-x).toString + "xxx"))
     ) ++ (0 to 100).toList.filter(_%3 == 1).map(x =>
@@ -120,13 +134,14 @@ object Test extends SimpleSwingApplication {
                     Data(x, (100-x).toString + "xxx" + y.toString))
                 ,None
                 ,false))
-    ) ++ (101 to 102).toList.map(x =>
-      (LivingTree((Data(x, (100-x).toString + "xxx"))
+    ) ++ List(lt1, lt2)
+    /*++ (101 to 102).toList.map(x =>
+      (LivingTree((Data(x, (100+x).toString + "xxx"))
                 ,(0 to 9).toList.map(y =>
-                    Data(x, (100-x).toString + "xxx" + y.toString))
+                    Data(y+1, (100+x).toString + "xxx" + y.toString))
                 ,None
                 ,true))
-    ) 
+    ) */
     /*val data:List[RowData] = (0 to 100).toList.map(x => RowData(Data(x, (100-x).toString + "xxx")){
       isExpandable = true
       expandedData = (0 to 10).toList.map(y => RowData(Data(x, (100-x).toString + "xxx"+y.toString)))
@@ -149,13 +164,15 @@ object Test extends SimpleSwingApplication {
     
     val buttonPannel = new GridBagPanel() {
       add(new Button(Action("Test") {
-            //println("Test:")
+            println("Test:")
             //table.paintExpandColumn = !table.paintExpandColumn
             //table unselectAll// data(0).data*/
-            if(table.isFiltered) table.unfilter
+            lt1.expanded = !lt1.expanded
+            table.refresh
+            /*if(table.isFiltered) table.unfilter
             else table filter (_ match {
               case Data(i, _) => i%2 == 0
-            })
+            })*/
             //table.data = (0 to 101).toList.map(x => RowData(Data(x, (100-x).toString + "xxx")))
           })
         , new Constraints() {
