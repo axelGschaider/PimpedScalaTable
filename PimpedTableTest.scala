@@ -117,7 +117,7 @@ object Test extends SimpleSwingApplication {
                         , true
                         )
 
-    val lt2 = LivingTree(Data(101, "202xxx")
+    val lt2 = LivingTree(Data(102, "202xxx")
                         , (0 to 9).toList.map(y =>
                             Data(y+1, "202xxx"+y.toString))
                         , None

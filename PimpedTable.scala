@@ -48,7 +48,7 @@ trait Row[+A] {
 }
 
 case class DeadTree[A](data:A) extends Row[A]
-case class LivingTree[A](data:A, leafData:List[A], internal:Option[Comparator[A]], var expanded:Boolean = false) extends Row[A] {
+case class LivingTree[A](data:A, leafData:List[A], internal:Option[Comparator[Leaf[A]]], var expanded:Boolean = false) extends Row[A] {
   var leaves:List[Leaf[A]] = leafData.map(x => Leaf(x, this))
 }
 case class Leaf[A](data:A, father:LivingTree[A]) extends Row[A]
@@ -114,7 +114,7 @@ case class TableBehaviourWorker(x: TableBehaviourClient) extends MouseAdapter wi
 trait ColumnDescription[-A, +B] {
   val name:String
 
-  def extractValue(x:Row[A]):ColumnValue[_ <: B]
+  def extractValue(x:Row[A]):B
 
   val isSortable:Boolean = false
 
@@ -128,7 +128,9 @@ trait ColumnDescription[-A, +B] {
   //def comparator: /*Option[Comparator[ColumnValue[_ <: A]]]*/Option[Comparator[_ <: B]]
 }
 
-
+/*class ExtractorRelais[A,B](descr:ColumnDescription[A,B]) {
+  def ex(x:Row[A]):ColumnValue[B] = descr extractValue x
+}*/
 
 class PimpedTableModel[A,B <: ColumnValue[A] ](dat:List[Row[A]], columns:List[ColumnDescription[A,B]], var paintExpander:Boolean = false) extends AbstractTableModel {
   private var lokalData = dat
@@ -173,18 +175,40 @@ class PimpedTableModel[A,B <: ColumnValue[A] ](dat:List[Row[A]], columns:List[Co
 }
 
 class PimpedColumnComparator[A,B <: ColumnValue[A]](comp:Comparator[B], col:ColumnDescription[A,B], colIndex:Int, mother:SortInfo) extends Comparator[B] {
-  override def compare(o1:B, o2:B):Int = (o1, o2) match {
-    case (s1:ColumnValue[A], s2:ColumnValue[A]) => internalCompare(s1,s2) match {
-      case Some(i) => i
-      case None    => comp.compare(o1, o2)
-    }
-    case _                                      => comp.compare(o1, o2)
+  override def compare(o1:B, o2:B):Int = internalCompare(o1,o2) match {
+    case Some(i) => i
+    case None    => comp.compare(o1, o2)
   }
   
-  private def internalCompare(v1:ColumnValue[A], v2:ColumnValue[A]):Option[Int] = (v1, v2) match {
-
+  private def internalCompare(v1:B, v2:B):Option[Int] = (v1.father, v2.father) match {
+    case(t:LivingTree[A], l:Leaf[A]) => Some(handleLivingtree(t,l))
+    case(l:Leaf[A], t:LivingTree[A]) => Some(handleLivingtree(t,l) * (-1))
+    case(d:DeadTree[A], l:Leaf[A]) => Some(comp.compare(v1, col extractValue l.father))
+    case(l:Leaf[A], d:DeadTree[A]) => Some(comp.compare(col extractValue l.father, v2))
+    case(l1:Leaf[A], l2:Leaf[A])   => Some(handleTwoLeaves(l1,l2))
     case(_,_) => None
     
+  }
+
+  private def handleTwoLeaves(l1:Leaf[A], l2:Leaf[A]):Int = (l1.father, l2.father) match {
+    case (f1, f2) if f1 == f2 => f1.internal match {
+      case None    => comp.compare(col extractValue l1, col extractValue l2)
+      case Some(c) => mother.getSortOrder match {
+        case Descending => c.compare(l1, l2) * (-1)
+        case _          => c.compare(l1, l2)
+      }
+    }
+    case (f1,f2) => comp.compare(col extractValue f1, col extractValue f2)
+  }
+
+  private def handleLivingtree(t:LivingTree[A], l:Leaf[A]):Int = (t, l.father) match {
+    case (t1, t2) if t1 == t2 => over
+    case (t1, t2)             => comp.compare(col extractValue t1, col extractValue t2)
+  }
+
+  private def over = mother.getSortOrder match {
+    case Descending => 1
+    case _          => -1
   }
 
 }
