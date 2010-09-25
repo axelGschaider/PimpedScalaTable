@@ -96,7 +96,13 @@ case class IntColumn(name:String) extends MyColumns[IntValue] {
 
 }
 
-
+object InternalIntColumnComparator extends Comparator[Leaf[Data]] {
+  def compare(d1:Leaf[Data], d2:Leaf[Data]):Int = (d1.data, d2.data) match {
+    case(Data(i1,_),Data(i2,_)) if i1 == i2 => 0
+    case(Data(i1,_),Data(i2,_)) if i1 > i2  => 1
+    case _                                  => -1
+  }
+}
 
 
 object Test extends SimpleSwingApplication {
@@ -113,7 +119,7 @@ object Test extends SimpleSwingApplication {
     val lt1 = LivingTree(Data(101, "201xxx")
                         , (0 to 9).toList.map(y =>
                             Data(y+1, "201xxx"+y.toString))
-                        , None
+                        , Some(InternalIntColumnComparator)
                         , true
                         )
 
