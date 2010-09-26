@@ -20,24 +20,18 @@ package at.axelGschaider.pimpedTable
 
 import scala.swing._
 import javax.swing.JTable
+import javax.swing.table.TableCellEditor
+import javax.swing.AbstractCellEditor
 import scala.swing.event._
 import javax.swing.table.AbstractTableModel
 import javax.swing.table.TableRowSorter
 import javax.swing.RowSorter.SortKey
 import javax.swing.event.{ListSelectionEvent, TableColumnModelListener, ChangeEvent, TableColumnModelEvent}
-import java.awt.event.{MouseEvent, MouseAdapter}
+import java.awt.event.{MouseEvent, MouseAdapter, ActionListener,ActionEvent}
 import java.util.EventObject
 import java.util.Comparator
 import java.awt.Color
 import scala.annotation.unchecked.uncheckedVariance
-
-/*trait Row[A] {
-  val data:A
-  val isExpandable:Boolean = false
-  def expandedData():List[A] = List.empty[A]
-  var expanded:Boolean = false
-  //val internalComparator:Option[Comparator[A]] = None
-}*/
 
 trait ColumnValue[-A] {
   val father:Row[_ >: A]
@@ -59,6 +53,7 @@ trait TableBehaviourClient {
   def moveColumn(oldIndex:Int, newIndex:Int):Unit
   def reordering_=(allowe:Boolean)
   def reordering:Boolean
+  def refresh():Unit
 }
 
 trait ComparatorRelais[+B] extends java.util.Comparator[B @uncheckedVariance]
@@ -79,6 +74,8 @@ case class TableBehaviourWorker(x: TableBehaviourClient) extends MouseAdapter wi
   }
   def columnRemoved(e: TableColumnModelEvent) {}
   def columnAdded(e: TableColumnModelEvent) {}
+  
+  
 
   override def mouseReleased(e:MouseEvent) {
     var takeNewData = false
@@ -87,7 +84,7 @@ case class TableBehaviourWorker(x: TableBehaviourClient) extends MouseAdapter wi
         x.moveColumn(columnNewValue, columnValue)
         columnNewValue = -1
         columnValue = -1 
-        println("fixed it")
+        //println("fixed it")
       } 
     }
     if(columnValue != -1 && columnValue != columnNewValue) {
@@ -96,12 +93,12 @@ case class TableBehaviourWorker(x: TableBehaviourClient) extends MouseAdapter wi
     }
 
     if(marginChanged) {
-      println("Margin changed")
+      //println("Margin changed")
       takeNewData = true
     }
 
     if(takeNewData) {
-      println("take new data")
+      //println("take new data")
     }
 
     columnNewValue = -1
@@ -110,6 +107,9 @@ case class TableBehaviourWorker(x: TableBehaviourClient) extends MouseAdapter wi
   }
 }
 
+sealed trait PimpedRenderer
+case class LeaveMeAloneRenderer(c:Component) extends PimpedRenderer
+case class SetMyBackgroundRenderer(c:Component, setBackground:(Color=>Unit), setForeground:(Color=>Unit) = (_ => {})) extends PimpedRenderer
 
 trait ColumnDescription[-A, +B] {
   val name:String
@@ -122,7 +122,7 @@ trait ColumnDescription[-A, +B] {
 
   val paintGroupColourWhileExpanding:Boolean = false
 
-  def renderComponent(data:Row[A], isSelected: Boolean, focused: Boolean, isExpanded: Boolean):Component
+  def renderComponent(data:Row[A], isSelected: Boolean, focused: Boolean):PimpedRenderer
 
   def comparator: Option[ComparatorRelais[B]]
   //def comparator: /*Option[Comparator[ColumnValue[_ <: A]]]*/Option[Comparator[_ <: B]]
@@ -237,15 +237,20 @@ class SortInfo(sorter:TableRowSorter[_], val column:Int ) {
   }
 }
 
+
 class ConvenientPimpedTable[A, B <: ColumnValue[A]](dat:List[A], columns:List[ColumnDescription[A,B]]) extends PimpedTable[A, B](dat.map(x => new Row[A] {val data = x}),columns) 
 
 case class PimpedTableSelectionEvent(s:Table) extends TableEvent(s)
 
-class PimpedTable[A, B <: ColumnValue[A]](initData:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends Table with TableBehaviourClient {
+class PimpedTable[A, B <: ColumnValue[A]](initData:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends Table with TableBehaviourClient with ExpansionColumnEditorProvider {
 
+  private var groupBackground:Color = Color.LIGHT_GRAY
+  private var groupForeground:Color = Color.BLACK
+  private var expansionRowBackground:Color = Color.WHITE
   private var fallbackDat = initData
   private var filteredDat = fallbackDat
-  
+  private val expansionButtons:scala.collection.mutable.HashMap[Int, LivingTreeButton] = scala.collection.mutable.HashMap.empty[Int, LivingTreeButton]
+
   private var expandColumn:Boolean = false
   override def paintExpandColumn:Boolean = expandColumn
   def paintExpandColumn_=(paint:Boolean) = {
@@ -270,6 +275,16 @@ class PimpedTable[A, B <: ColumnValue[A]](initData:List[Row[A]], columns:List[Co
   val sorter = new TableRowSorter[PimpedTableModel[A,B]]()
   sorter.setSortsOnUpdates(true)
   this.peer.setRowSorter(sorter)
+
+  private def refreshExpansionButtons = {
+    expansionButtons.clear
+    
+    filteredData.zipWithIndex.foreach(x => x match {
+      case (l@LivingTree(_,_,_,_), i) => expansionButtons += ((i,new LivingTreeButton(l, this)))
+      case (_,_)                      => {}
+    })
+
+  }
 
   private def fillSorter = {
     val offset = if(paintExpandColumn) {
@@ -319,13 +334,14 @@ class PimpedTable[A, B <: ColumnValue[A]](initData:List[Row[A]], columns:List[Co
       case _                        => l.head +: expandData(l.tail)
     }
   }
-   
+
   def filteredData = filteredDat
   private def filteredData_= (d:List[Row[A]]) = {
     var sel = selectedData()
     var sortkeys = sorter.getSortKeys
     blockSelectionEvents = true
     filteredDat = expandData(d)
+    refreshExpansionButtons
     tableModel =  new PimpedTableModel(filteredData, columns, paintExpandColumn)
     this.model = tableModel
     sorter setModel tableModel
@@ -343,6 +359,7 @@ class PimpedTable[A, B <: ColumnValue[A]](initData:List[Row[A]], columns:List[Co
       col setWidth 30
       col setMinWidth 30
       col setMaxWidth 30
+      col setCellEditor new ExpansionCellEditor(this)
     }
 
 
@@ -405,36 +422,116 @@ class PimpedTable[A, B <: ColumnValue[A]](initData:List[Row[A]], columns:List[Co
   private def convertedColumn(column:Int) = this.peer.convertColumnIndexToModel(column)
   
   def rendererComponentForPeerTable(isSelected: Boolean, focused: Boolean, row: Int, column: Int): Component = {
-    if(paintExpandColumn) {
-      if(column == 0) {
-        //TODO
-        new Label() {
+    val columnOffset = if (paintExpandColumn) 1 else 0
+
+    if(paintExpandColumn && column == 0) {
+      //TODO
+      filteredData(convertedRow(row)) match {
+        case Leaf(_,_) => new Label(){
           opaque = true
-          filteredData(convertedRow(row)) match {
-            case DeadTree(_)         => background = Color.BLACK//RED
-            case LivingTree(_,_,_,_) => background = Color.GREEN
-            case Leaf(_,_)           => background = Color.WHITE
-          }
-          if(isSelected) {
-            background = Color.BLUE
+          if (isSelected) background =  selectionBackground
+          else background = expansionRowBackground
+        }
+        case DeadTree(_) => new Label(){background = expansionRowBackground}
+        case lt@LivingTree(_,_,_,_) => {
+          expansionButtons.get(convertedRow(row)) match {
+            case Some(b) => b
+            case None    => new Label()
           }
         }
       }
-      else {
-        val c = convertedColumn(column)-1
-        if(c >= 0) columns(c).renderComponent(filteredData(convertedRow(row)), isSelected, focused, /*TODO*/false)
-        else {/*println("Föhlah: " + c); */new Label("")}
-      }
     } else {
-      columns(convertedColumn(column)).renderComponent(filteredData(convertedRow(row)), isSelected, focused, /*TODO*/false)
+      val colDescr = columns(convertedColumn(column-columnOffset))
+      val data = filteredData(convertedRow(row))
+      data match {
+        case Leaf(_,_) if colDescr.ignoreWhileExpanding => {
+          new Label() {
+            if(colDescr.paintGroupColourWhileExpanding) {
+              background = groupBackground
+              opaque = true
+            }
+          }
+        }
+        case _ => columns(convertedColumn(column-columnOffset)).renderComponent(data, isSelected, focused) match {
+          case LeaveMeAloneRenderer(r) => r
+          case SetMyBackgroundRenderer(r, b, f) => {
+            if(isSelected) {
+              b(selectionBackground)
+              f(selectionForeground)
+            } else {
+              data match {
+                case t@LivingTree(_,_,_,_) if(t.expanded) => {
+                  b(groupBackground)
+                  f(groupForeground)
+                }
+                case t@Leaf(_,_) if(colDescr.paintGroupColourWhileExpanding) => {
+                  b(groupBackground)
+                  f(groupForeground)
+                }
+                case _ => {}
+              }
+            }
+            r
+          }
+        }
+      }
     }
   }
   
   def selectedData():List[A] = this.selection.rows.toList.map(i => filteredData(convertedRow(i)).data)
 
+  def gimmeEditor(row:Int):java.awt.Component = expansionButtons.get(row) match {
+    case Some(e) => {
+      println("return editor for " + row)
+      e.peer
+    }
+    case None    => {
+      println("da ist was faul im Staate Denver")
+      new Label().peer
+    }
+  }
+
+  //peer.isCellEditable(true)
   
+  /*def getTableCellEditorComponent(table:JTable, value:Object, isSelected:Boolean, row:Int, column:Int):java.awt.Component = expansionButtons.get(row) match {
+    case Some(e) => {
+      println("return editor for " + row)
+      e.peer
+    }
+    case None    => {
+      println("da ist was faul im Staate Denver")
+      new Label().peer
+    }
+  }
+
+  def removeCellEditorListener(l:javax.swing.event.CellEditorListener):Unit = {}
+  def addCellEditorListener(l:javax.swing.event.CellEditorListener):Unit = {}
+  def cancelCellEditing():Unit = {}
+  def stopCellEditing():Boolean = true
+  def shouldSelectCell(e:java.util.EventObject):Boolean = true
+  def isCellEditable(e:java.util.EventObject):Boolean = true
+  def getCellEditorValue():Object = null*/
+
 
   fallbackData = initData
 
+}
+
+class LivingTreeButton(lt:LivingTree[_], client:TableBehaviourClient) extends Button(){
+  action = Action("xx") {
+  println("gaga")
+  lt.expanded = !lt.expanded
+  client.refresh
+ }
+  //println("Gottverdammt")
+}
+
+class ExpansionCellEditor(provider:ExpansionColumnEditorProvider) extends AbstractCellEditor with TableCellEditor{
+  def getTableCellEditorComponent(table:JTable, value:Object, isSelected:Boolean, row:Int, column:Int) = provider gimmeEditor row
+  def getCellEditorValue():java.lang.Object = null
+}
+
+trait ExpansionColumnEditorProvider {
+  def gimmeEditor(row:Int):java.awt.Component
 }
 

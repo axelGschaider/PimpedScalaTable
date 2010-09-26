@@ -47,29 +47,29 @@ sealed trait MyColumns[+Value] extends ColumnDescription[Data, Value] {
   
   override val isSortable = true
 
-  def renderComponent(data:Row[Data], isSelected: Boolean, focused: Boolean, isExpanded:Boolean):Component = {
-    
-    val l = new Label()
+  def renderComponent(data:Row[Data], isSelected: Boolean, focused: Boolean):PimpedRenderer = {
+  val l = new Label(extractValue(data) match {
+    case StringValue(s,_) => s
+    case IntValue(i,_)    => i.toString
+  })
 
-    extractValue(data) match {
-      case StringValue(s,_) => l.text = s
-      case IntValue(i,_)    => l.text = i.toString
-    }
-
-    if(isSelected) {
-      l.opaque = true
-      l.background = Color.BLUE
-    }
-
-    l
+  SetMyBackgroundRenderer(l, (x => {
+    l.opaque = true
+    l.background = x
+  }))
 
   }
-
+  
+  
+  
 }
 
 case class StringColumn(name:String) extends MyColumns[StringValue] {
   //override val isSortable = false
   def extractValue(x:Row[Data]) = StringValue(x.data.s, x)
+
+  override val paintGroupColourWhileExpanding = true
+
   def comparator = Some(new ComparatorRelais[StringValue] {
     def compare(o1:StringValue, o2:StringValue):Int = (o1,o2) match {
       case (StringValue(s1,_), StringValue(s2,_)) => 
@@ -83,6 +83,8 @@ case class StringColumn(name:String) extends MyColumns[StringValue] {
 
 case class IntColumn(name:String) extends MyColumns[IntValue] {
   def extractValue(x:Row[Data]) = IntValue(x.data.i, x)
+  
+  override val ignoreWhileExpanding = true
 
   def comparator = Some(new ComparatorRelais[IntValue] {
     
@@ -170,10 +172,10 @@ object Test extends SimpleSwingApplication {
     
     val buttonPannel = new GridBagPanel() {
       add(new Button(Action("Test") {
-            println("Test:")
+            //println("Test:")
             //table.paintExpandColumn = !table.paintExpandColumn
             //table unselectAll// data(0).data*/
-            lt1.expanded = !lt1.expanded
+            lt2.expanded = !lt2.expanded
             table.refresh
             /*if(table.isFiltered) table.unfilter
             else table filter (_ match {
@@ -201,12 +203,12 @@ object Test extends SimpleSwingApplication {
     listenTo(table/*.selection*/)
     reactions += {
       case PimpedTableSelectionEvent(_) => {
-        println("\nCLICK.")
+        //println("\nCLICK.")
         //println(" Adjusting: " + adjusting)
         //println("range: " + range + "\n")
-        table.selectedData.foreach(_ match {
+        /*table.selectedData.foreach(_ match {
           case Data(i, s) => println("i:"+i+" s:"+s)
-        })
+        })*/
       }
       //case _ => println("da ist was faul im Staate Denver")
     }
