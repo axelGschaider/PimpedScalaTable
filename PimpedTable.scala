@@ -20,7 +20,8 @@ package at.axelGschaider.pimpedTable
 
 import scala.swing._
 import javax.swing.JTable
-import javax.swing.table.TableCellEditor
+import javax.swing.JButton
+import javax.swing.table.{TableCellRenderer, TableCellEditor}
 import javax.swing.AbstractCellEditor
 import scala.swing.event._
 import javax.swing.table.AbstractTableModel
@@ -243,10 +244,16 @@ class ConvenientPimpedTable[A, B <: ColumnValue[A]](dat:List[A], columns:List[Co
 case class PimpedTableSelectionEvent(s:Table) extends TableEvent(s)
 
 class PimpedTable[A, B <: ColumnValue[A]](initData:List[Row[A]], columns:List[ColumnDescription[A,B]]) extends Table with TableBehaviourClient with ExpansionColumnEditorProvider {
-
-  private var groupBackground:Color = Color.LIGHT_GRAY
-  private var groupForeground:Color = Color.BLACK
-  private var expansionRowBackground:Color = Color.WHITE
+  
+  var groupBackground:Color = Color.LIGHT_GRAY
+  var groupBackgroundSelected = selectionBackground.darker//groupBackground.darker
+  var groupForeground:Color = Color.BLACK
+  var groupForegroundSelected = selectionBackground.darker//groupForeground.darker
+  var groupFatherBackground:Color = Color.GRAY
+  var groupFatherBackgroundSelected = selectionBackground.darker.darker//groupFatherBackground.darker
+  var groupFatherForeground:Color = Color.BLACK
+  var groupFatherForegroundSelected = selectionForeground.darker.darker//groupFatherForeground.darker
+  var expansionRowBackground:Color = Color.WHITE
   private var fallbackDat = initData
   private var filteredDat = fallbackDat
   private val expansionButtons:scala.collection.mutable.HashMap[Int, LivingTreeButton] = scala.collection.mutable.HashMap.empty[Int, LivingTreeButton]
@@ -359,7 +366,10 @@ class PimpedTable[A, B <: ColumnValue[A]](initData:List[Row[A]], columns:List[Co
       col setWidth 30
       col setMinWidth 30
       col setMaxWidth 30
-      col setCellEditor new ExpansionCellEditor(this)
+      //col setCellEditor new ExpansionCellEditor(this)
+      val gaga = new ExpansionColumnWorker()
+      col setCellRenderer gaga
+      col setCellEditor gaga
     }
 
 
@@ -419,58 +429,88 @@ class PimpedTable[A, B <: ColumnValue[A]](initData:List[Row[A]], columns:List[Co
   }
   
   private def convertedRow(row:Int) = this.peer.convertRowIndexToModel(row)
-  private def convertedColumn(column:Int) = this.peer.convertColumnIndexToModel(column)
+  private def convertedColumn(column:Int) = {
+    if(paintExpandColumn) {
+      this.peer.convertColumnIndexToModel(column)-1
+    }
+    else {
+      this.peer.convertColumnIndexToModel(column)
+    }
+  }
   
   def rendererComponentForPeerTable(isSelected: Boolean, focused: Boolean, row: Int, column: Int): Component = {
-    val columnOffset = if (paintExpandColumn) 1 else 0
+    //val columnOffset = if (paintExpandColumn) 1 else 0
 
     if(paintExpandColumn && column == 0) {
       //TODO
       filteredData(convertedRow(row)) match {
-        case Leaf(_,_) => new Label(){
-          opaque = true
-          if (isSelected) background =  selectionBackground
-          else background = expansionRowBackground
-        }
-        case DeadTree(_) => new Label(){background = expansionRowBackground}
         case lt@LivingTree(_,_,_,_) => {
           expansionButtons.get(convertedRow(row)) match {
             case Some(b) => b
             case None    => new Label()
           }
         }
+        case _          => new Label(){
+          opaque = true
+          if (isSelected) background =  selectionBackground
+          else background = expansionRowBackground
+        }
       }
     } else {
-      val colDescr = columns(convertedColumn(column-columnOffset))
+      //println("gagagaga: " + column + " - " + columnOffset + " -> " + convertedColumn(column-columnOffset))
+      //convertedColumn(column-columnOffset) 
+      val colDescr = columns(convertedColumn(column))
       val data = filteredData(convertedRow(row))
       data match {
         case Leaf(_,_) if colDescr.ignoreWhileExpanding => {
           new Label() {
-            if(colDescr.paintGroupColourWhileExpanding) {
+            if(isSelected && colDescr.paintGroupColourWhileExpanding) {
+              background = groupBackgroundSelected
+            }
+            else {
+              if(colDescr.paintGroupColourWhileExpanding) {
               background = groupBackground
               opaque = true
             }
+            if(isSelected) {
+              background = selectionBackground
+              opaque = true
+            }
+
+            }
           }
         }
-        case _ => columns(convertedColumn(column-columnOffset)).renderComponent(data, isSelected, focused) match {
+        case _ => columns(convertedColumn(column)).renderComponent(data, isSelected, focused) match {
           case LeaveMeAloneRenderer(r) => r
           case SetMyBackgroundRenderer(r, b, f) => {
-            if(isSelected) {
-              b(selectionBackground)
-              f(selectionForeground)
-            } else {
-              data match {
-                case t@LivingTree(_,_,_,_) if(t.expanded) => {
-                  b(groupBackground)
+              //b(selectionBackground)
+              //f(selectionForeground)
+            data match {
+              case t@LivingTree(_,_,_,_) if(t.expanded) => {
+                if(isSelected) {
+                  b(groupFatherBackgroundSelected)
+                  f(groupFatherForegroundSelected)
+                }
+                else {
+                  b(groupFatherBackground)
+                  f(groupFatherForeground)
+                }
+              }
+              case t@Leaf(_,_) if(colDescr.paintGroupColourWhileExpanding) => {
+                if(isSelected) {
+                  b(groupBackgroundSelected)
+                  f(groupForegroundSelected)
+                } else {
+                  b(groupBackground)                  
                   f(groupForeground)
                 }
-                case t@Leaf(_,_) if(colDescr.paintGroupColourWhileExpanding) => {
-                  b(groupBackground)
-                  f(groupForeground)
-                }
-                case _ => {}
+              }
+              case _ => if (isSelected) {
+                b(selectionBackground)
+                f(selectionForeground)
               }
             }
+           
             r
           }
         }
@@ -491,28 +531,6 @@ class PimpedTable[A, B <: ColumnValue[A]](initData:List[Row[A]], columns:List[Co
     }
   }
 
-  //peer.isCellEditable(true)
-  
-  /*def getTableCellEditorComponent(table:JTable, value:Object, isSelected:Boolean, row:Int, column:Int):java.awt.Component = expansionButtons.get(row) match {
-    case Some(e) => {
-      println("return editor for " + row)
-      e.peer
-    }
-    case None    => {
-      println("da ist was faul im Staate Denver")
-      new Label().peer
-    }
-  }
-
-  def removeCellEditorListener(l:javax.swing.event.CellEditorListener):Unit = {}
-  def addCellEditorListener(l:javax.swing.event.CellEditorListener):Unit = {}
-  def cancelCellEditing():Unit = {}
-  def stopCellEditing():Boolean = true
-  def shouldSelectCell(e:java.util.EventObject):Boolean = true
-  def isCellEditable(e:java.util.EventObject):Boolean = true
-  def getCellEditorValue():Object = null*/
-
-
   fallbackData = initData
 
 }
@@ -528,10 +546,38 @@ class LivingTreeButton(lt:LivingTree[_], client:TableBehaviourClient) extends Bu
 
 class ExpansionCellEditor(provider:ExpansionColumnEditorProvider) extends AbstractCellEditor with TableCellEditor{
   def getTableCellEditorComponent(table:JTable, value:Object, isSelected:Boolean, row:Int, column:Int) = provider gimmeEditor row
-  def getCellEditorValue():java.lang.Object = null
+  def getCellEditorValue():java.lang.Object = {
+    println("da will wer Daten")
+    null
+  }
 }
 
 trait ExpansionColumnEditorProvider {
   def gimmeEditor(row:Int):java.awt.Component
+}
+
+class ExpansionColumnWorker() extends AbstractCellEditor with TableCellRenderer with TableCellEditor with ActionListener {
+  
+  def getTableCellRendererComponent(table:JTable, value:Object, isSelected:Boolean, hasFocus:Boolean, row:Int, column:Int):java.awt.Component = {
+    val a = new JButton("oo")
+    println("give render button")
+    a
+  }
+
+  def getTableCellEditorComponent(table:JTable, value:Object, isSelected:Boolean, row:Int, column:Int):java.awt.Component = {
+    val a = new JButton("uu")
+    a.setFocusPainted(false)
+    println("give cell button")
+    a.addActionListener(this)
+    a
+  }
+
+  def getCellEditorValue():Object = "oo"
+  
+  def actionPerformed(e:ActionEvent):Unit = {
+    fireEditingStopped()
+    println("bin da")
+  }
+
 }
 

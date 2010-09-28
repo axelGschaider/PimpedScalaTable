@@ -21,6 +21,7 @@ import scala.swing.GridBagPanel.Fill
 import event._
 import java.awt.Color
 import java.util.Comparator
+import java.awt.Graphics2D
 
 
 
@@ -51,7 +52,40 @@ sealed trait MyColumns[+Value] extends ColumnDescription[Data, Value] {
   val l = new Label(extractValue(data) match {
     case StringValue(s,_) => s
     case IntValue(i,_)    => i.toString
-  })
+  }) {
+    override def paint(g: Graphics2D) {
+      super.paint(g)
+
+      val c = g.getColor
+      
+      val height = this.size.getHeight.toInt
+      val width = this.size.getWidth.toInt
+      
+      extractValue(data) match {
+        case StringValue(_,_) => {
+          g setColor Color.GREEN
+          /*val xPoints = new java.util.ArrayList[Int]
+          val yPoints = new java.util.ArrayList[Int]
+
+          xPoints add width
+          yPoints add height
+
+          xPoints add width
+          yPoints add (height - 10)
+
+          xPoints add (width - 10)
+          yPoints add height
+          
+          g.fillPolygon(xPoints.toArray[Int], yPoints.toArray, 3)*/
+
+          g.fillPolygon(Array(width, width, width-10), Array(height, height-10, height), 3)
+        }
+        case _                => {}
+      }
+
+      g setColor c
+    }
+  }
 
   SetMyBackgroundRenderer(l, (x => {
     l.opaque = true
